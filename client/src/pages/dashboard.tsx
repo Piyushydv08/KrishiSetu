@@ -5,6 +5,7 @@ import { QuickActionsPanel } from '@/components/QuickActionsPanel';
 import { SupplyChainMap } from '@/components/SupplyChainMap';
 import { ProductRegistrationForm } from '@/components/ProductRegistrationForm';
 import { RoleSelection } from '@/components/RoleSelection';
+import { RoleDashboard } from '@/components/RoleDashboard';
 import { Button } from '@/components/ui/button';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'wouter';
@@ -29,51 +30,62 @@ export default function Dashboard() {
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* Quick Actions Header */}
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h2 className="text-3xl font-bold text-foreground">Supply Chain Dashboard</h2>
-              <p className="text-muted-foreground mt-1">Track, verify, and manage your product journey</p>
+        {user?.roleSelected ? (
+          // Role-based dashboard
+          <RoleDashboard 
+            user={user} 
+            onRegisterProduct={() => setShowRegistrationForm(true)}
+            onScanQR={() => window.location.href = '/qr-scanner'}
+          />
+        ) : (
+          <>
+            {/* Quick Actions Header */}
+            <div className="mb-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h2 className="text-3xl font-bold text-foreground">Supply Chain Dashboard</h2>
+                  <p className="text-muted-foreground mt-1">Track, verify, and manage your product journey</p>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Link href="/qr-scanner">
+                    <Button 
+                      className="bg-accent text-accent-foreground hover:bg-accent/90 flex items-center gap-2 shadow-sm"
+                      data-testid="button-scan-qr"
+                    >
+                      <QrCode className="w-4 h-4" />
+                      Scan QR Code
+                    </Button>
+                  </Link>
+                  <Button 
+                    onClick={() => setShowRegistrationForm(true)}
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 shadow-sm"
+                    data-testid="button-register-product"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Register Product
+                  </Button>
+                </div>
+              </div>
             </div>
-            
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link href="/qr-scanner">
-                <Button 
-                  className="bg-accent text-accent-foreground hover:bg-accent/90 flex items-center gap-2 shadow-sm"
-                  data-testid="button-scan-qr"
-                >
-                  <QrCode className="w-4 h-4" />
-                  Scan QR Code
-                </Button>
-              </Link>
-              <Button 
-                onClick={() => setShowRegistrationForm(true)}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 shadow-sm"
-                data-testid="button-register-product"
-              >
-                <Plus className="w-4 h-4" />
-                Register Product
-              </Button>
+
+            {/* Stats Overview Cards */}
+            <StatsOverview />
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Recent Products Section */}
+              <RecentProducts />
+              
+              {/* QR Scanner & Quick Actions */}
+              <QuickActionsPanel />
             </div>
-          </div>
-        </div>
 
-        {/* Stats Overview Cards */}
-        <StatsOverview />
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Recent Products Section */}
-          <RecentProducts />
-          
-          {/* QR Scanner & Quick Actions */}
-          <QuickActionsPanel />
-        </div>
-
-        {/* Supply Chain Map Section */}
-        <div className="mt-8">
-          <SupplyChainMap />
-        </div>
+            {/* Supply Chain Map Section */}
+            <div className="mt-8">
+              <SupplyChainMap />
+            </div>
+          </>
+        )}
 
         {/* Product Registration Form */}
         <ProductRegistrationForm 

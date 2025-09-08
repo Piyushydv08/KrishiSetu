@@ -198,6 +198,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Ownership transfer routes
+  app.get("/api/ownership-transfers/product/:productId", async (req, res) => {
+    try {
+      const productId = req.params.productId;
+      const transfers = await storage.getOwnershipTransfersByProduct(productId);
+      res.json(transfers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch ownership transfers" });
+    }
+  });
+
+  app.get("/api/ownership-transfers/user/:userId", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const type = req.query.type as "from" | "to" | undefined;
+      const transfers = await storage.getOwnershipTransfersByUser(userId, type);
+      res.json(transfers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user ownership transfers" });
+    }
+  });
+
+  app.post("/api/ownership-transfers", async (req, res) => {
+    try {
+      const transferData = req.body;
+      const transfer = await storage.createOwnershipTransfer(transferData);
+      
+      // Create notification for recipient
+      await storage.createNotification({
+        userId: transferData.toUserId,
+        title: "Ownership Transfer Received",
+        message: `You have received ownership transfer for a product`,
+        type: "transfer",
+        productId: transferData.productId,
+        read: false
+      });
+      
+      res.json(transfer);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create ownership transfer" });
+    }
+  });
+
+  app.patch("/api/ownership-transfers/:id", async (req, res) => {
+    try {
+      const transferId = req.params.id;
+      const updates = req.body;
+      const transfer = await storage.updateOwnershipTransfer(transferId, updates);
+      
+      if (!transfer) {
+        return res.status(404).json({ message: "Transfer not found" });
+      }
+      
+      res.json(transfer);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update ownership transfer" });
+    }
+  });
+
+  // Notifications routes
+  app.get("/api/notifications/:userId", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const notifications = await storage.getNotifications(userId);
+      res.json(notifications);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", async (req, res) => {
+    try {
+      const notificationId = req.params.id;
+      await storage.markNotificationRead(notificationId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
