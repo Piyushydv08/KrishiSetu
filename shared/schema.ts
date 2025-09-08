@@ -10,6 +10,14 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("farmer"),
   firebaseUid: text("firebase_uid").notNull().unique(),
   profileImage: text("profile_image"),
+  phone: text("phone"),
+  company: text("company"),
+  location: text("location"),
+  bio: text("bio"),
+  website: text("website"),
+  roleSelected: boolean("role_selected").default(false),
+  language: text("language").default("en"),
+  notificationsEnabled: boolean("notifications_enabled").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -69,6 +77,31 @@ export const scans = pgTable("scans", {
   timestamp: timestamp("timestamp").defaultNow(),
 });
 
+export const ownershipTransfers = pgTable("ownership_transfers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  fromUserId: varchar("from_user_id").references(() => users.id).notNull(),
+  toUserId: varchar("to_user_id").references(() => users.id).notNull(),
+  transferType: text("transfer_type").notNull(), // "transportation", "distribution", "retail", "sale"
+  status: text("status").notNull().default("pending"), // "pending", "accepted", "completed"
+  notes: text("notes"),
+  expectedDelivery: timestamp("expected_delivery"),
+  actualDelivery: timestamp("actual_delivery"),
+  blockchainHash: text("blockchain_hash"),
+  timestamp: timestamp("timestamp").defaultNow(),
+});
+
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  type: text("type").notNull(), // "alert", "price", "transfer", "system"
+  read: boolean("read").default(false),
+  productId: varchar("product_id").references(() => products.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -100,14 +133,29 @@ export const insertScanSchema = createInsertSchema(scans).omit({
   timestamp: true,
 });
 
+export const insertOwnershipTransferSchema = createInsertSchema(ownershipTransfers).omit({
+  id: true,
+  blockchainHash: true,
+  timestamp: true,
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type InsertQualityCheck = z.infer<typeof insertQualityCheckSchema>;
 export type InsertScan = z.infer<typeof insertScanSchema>;
+export type InsertOwnershipTransfer = z.infer<typeof insertOwnershipTransferSchema>;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 
 export type User = typeof users.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type QualityCheck = typeof qualityChecks.$inferSelect;
 export type Scan = typeof scans.$inferSelect;
+export type OwnershipTransfer = typeof ownershipTransfers.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;

@@ -44,7 +44,8 @@ export function useAuth() {
                 email: firebaseUser.email!,
                 name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
                 firebaseUid: firebaseUser.uid,
-                profileImage: firebaseUser.photoURL
+                profileImage: firebaseUser.photoURL,
+                roleSelected: false
               }).then(res => res.json());
             }
             

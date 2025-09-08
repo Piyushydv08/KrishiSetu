@@ -1,0 +1,55 @@
+Build a React + Next.js web application integrated with Firebase (Auth and Firestore) implementing a blockchain-based agricultural supply chain tracking system with the following features:
+
+1. User Authentication & Role Selection
+- Google sign-in authentication.
+- On first login, prompt user to select role: Farmer, Distributor, Retailer, Consumer.
+- Save user role and profile data securely in Firestore.
+- Role switch option available in user profile.
+
+2. Role-Based Dashboards with Features
+- Farmer Dashboard:
+  - Product registration with QR code generation.
+  - View and manage owned products.
+  - Market price alerts and notifications.
+  - Access to climate adaptation advisory with blockchain-verified data.
+  - Option for data monetization (track consent for anonymized data sharing).
+- Distributor Dashboard:
+  - QR code scanning and transaction recording.
+  - Supply chain journey map with geo-tagging.
+  - Quality assurance certificate management.
+  - Reputation and rating system for stakeholders.
+- Retailer Dashboard:
+  - Product verification via QR scanning.
+  - Transaction acceptance and analytics summary.
+  - Dispute resolution requests and tracking.
+  - Certification & warranty verification display.
+- Consumer Dashboard:
+  - Product provenance traceability with interactive map.
+  - QR code scanning for product history.
+  - Rate products and give feedback.
+  - View carbon footprint and environmental impact data.
+
+3. Common Features
+- Multi-language support for regional languages using i18n.
+- Notifications system for market price alerts, emergency response, and updates.
+- Offline mode enabling limited functionality in low connectivity.
+- Smart contract incentives integration showcasing rewards earned.
+- IoT sensor data integration for automated quality/environment monitoring.
+- User training/help section with tutorials.
+- Clean, mobile-responsive UI using Tailwind CSS.
+- Loading states, error handling, and smooth animations.
+- Secure Firestore rules based on user roles to restrict/allow access.
+
+4. Backend & Blockchain Integration
+- Connect to Ethereum or Hyperledger smart contracts for recording transactions and incentives.
+- Store transaction hashes and blockchain provenance data linked with Firestore records.
+- Use QR codes linked to blockchain entries for all product batches.
+
+Please generate:
+
+- Code for authentication, role management, and profile storage.
+- Role-specific dashboards with relevant components and API calls.
+- Multilingual support setup using common libraries.
+- Notification and offline capabilities.
+- Integration connectors for smart contracts and IoT data (mock or real).
+- Clear comments and documentation in code for easy customization.

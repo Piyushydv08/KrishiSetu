@@ -4,13 +4,24 @@ import { RecentProducts } from '@/components/RecentProducts';
 import { QuickActionsPanel } from '@/components/QuickActionsPanel';
 import { SupplyChainMap } from '@/components/SupplyChainMap';
 import { ProductRegistrationForm } from '@/components/ProductRegistrationForm';
+import { RoleSelection } from '@/components/RoleSelection';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'wouter';
+import { useAuth } from '@/hooks/useAuth';
 import { QrCode, Plus } from 'lucide-react';
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+  const [showRoleSelection, setShowRoleSelection] = useState(false);
+  
+  // Check if user needs role selection
+  useEffect(() => {
+    if (user && !user.roleSelected) {
+      setShowRoleSelection(true);
+    }
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-background font-sans">
@@ -68,6 +79,15 @@ export default function Dashboard() {
         <ProductRegistrationForm 
           isVisible={showRegistrationForm}
           onClose={() => setShowRegistrationForm(false)}
+        />
+
+        {/* Role Selection Modal */}
+        <RoleSelection 
+          isVisible={showRoleSelection}
+          onRoleSelected={() => {
+            setShowRoleSelection(false);
+            window.location.reload(); // Refresh to update user data
+          }}
         />
       </main>
     </div>

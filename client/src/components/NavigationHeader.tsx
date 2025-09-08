@@ -75,13 +75,13 @@ export function NavigationHeader() {
                     Dashboard
                   </a>
                 </Link>
-                <Link href="/products">
+                <Link href="/profile">
                   <a className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActiveRoute('/products') 
+                    isActiveRoute('/profile') 
                       ? 'text-primary border-b-2 border-primary' 
                       : 'text-muted-foreground hover:text-foreground'
-                  }`} data-testid="link-products">
-                    Products
+                  }`} data-testid="link-profile">
+                    Profile
                   </a>
                 </Link>
                 <Link href="/qr-scanner">
@@ -127,10 +127,12 @@ export function NavigationHeader() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem className="cursor-pointer" data-testid="menu-profile">
-                  <User className="mr-2 h-4 w-4" />
-                  Profile
-                </DropdownMenuItem>
+                <Link href="/profile">
+                  <DropdownMenuItem className="cursor-pointer" data-testid="menu-profile">
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </DropdownMenuItem>
+                </Link>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout} className="cursor-pointer" data-testid="menu-logout">
                   <LogOut className="mr-2 h-4 w-4" />

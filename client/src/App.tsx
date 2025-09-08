@@ -7,6 +7,7 @@ import Dashboard from "@/pages/dashboard";
 import ProductRegistration from "@/pages/product-registration";
 import QRScannerPage from "@/pages/qr-scanner";
 import ProductDetails from "@/pages/product-details";
+import ProfilePage from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/product-registration" component={ProductRegistration} />
       <Route path="/qr-scanner" component={QRScannerPage} />
       <Route path="/product/:id" component={ProductDetails} />
+      <Route path="/profile" component={ProfilePage} />
       <Route component={NotFound} />
     </Switch>
   );
