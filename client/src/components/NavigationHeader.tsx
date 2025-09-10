@@ -43,7 +43,7 @@ export function NavigationHeader() {
               </h1>
             </div>
             <Button onClick={login} data-testid="button-login">
-              Sign In with Google
+              Sign In/Up
             </Button>
           </div>
         </div>
