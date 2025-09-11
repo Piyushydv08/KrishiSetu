@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
 
 // Firebase configuration using environment variables
@@ -21,5 +21,5 @@ const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
 // Export the required Firebase objects
-export { app, analytics, auth, googleProvider };
+export { app, analytics, auth, googleProvider, signInWithPopup };
 
