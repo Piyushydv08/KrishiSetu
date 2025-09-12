@@ -102,9 +102,31 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const productOwners = pgTable("product_owners", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull(),
+  name: text("name").notNull(),
+  ownerId: varchar("owner_id").notNull(), // user id
+  addedBy: varchar("added_by").notNull(), // user id who added
+  role: text("role").notNull(), // e.g. "farmer", "distributor", "retailer"
+  canEditFields: text("can_edit_fields").array().notNull(), // e.g. ["quantity", "location"]
+  username: text("username").notNull().unique(), // system-generated unique username
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const productComments = pgTable("product_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull(),
+  ownerId: varchar("owner_id").notNull(), // user id who commented
+  comment: text("comment").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+}).extend({
+  createdAt: z.coerce.date().optional(),
 });
 
 export const insertProductSchema = createInsertSchema(products).omit({
@@ -113,6 +135,12 @@ export const insertProductSchema = createInsertSchema(products).omit({
   batchId: true,
   blockchainHash: true,
   createdAt: true,
+}).extend({
+  qrCode: z.string().optional(),
+  batchId: z.string().optional(),
+  blockchainHash: z.string().optional(),
+  harvestDate: z.coerce.date(),
+  createdAt: z.coerce.date().optional(),
 });
 
 export const insertTransactionSchema = createInsertSchema(transactions).omit({
@@ -120,28 +148,54 @@ export const insertTransactionSchema = createInsertSchema(transactions).omit({
   blockchainHash: true,
   verified: true,
   timestamp: true,
+}).extend({
+  timestamp: z.coerce.date().optional(),
 });
 
 export const insertQualityCheckSchema = createInsertSchema(qualityChecks).omit({
   id: true,
   verified: true,
   timestamp: true,
+}).extend({
+  timestamp: z.coerce.date().optional(),
 });
 
 export const insertScanSchema = createInsertSchema(scans).omit({
   id: true,
   timestamp: true,
+}).extend({
+  timestamp: z.coerce.date().optional(),
 });
 
 export const insertOwnershipTransferSchema = createInsertSchema(ownershipTransfers).omit({
   id: true,
   blockchainHash: true,
   timestamp: true,
+}).extend({
+  expectedDelivery: z.coerce.date().optional(),
+  actualDelivery: z.coerce.date().optional(),
+  timestamp: z.coerce.date().optional(),
 });
 
 export const insertNotificationSchema = createInsertSchema(notifications).omit({
   id: true,
   createdAt: true,
+}).extend({
+  createdAt: z.coerce.date().optional(),
+});
+
+export const insertProductOwnerSchema = createInsertSchema(productOwners).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  createdAt: z.coerce.date().optional(),
+});
+
+export const insertProductCommentSchema = createInsertSchema(productComments).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  createdAt: z.coerce.date().optional(),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -151,6 +205,8 @@ export type InsertQualityCheck = z.infer<typeof insertQualityCheckSchema>;
 export type InsertScan = z.infer<typeof insertScanSchema>;
 export type InsertOwnershipTransfer = z.infer<typeof insertOwnershipTransferSchema>;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type InsertProductOwner = z.infer<typeof insertProductOwnerSchema>;
+export type InsertProductComment = z.infer<typeof insertProductCommentSchema>;
 
 export type User = typeof users.$inferSelect;
 export type Product = typeof products.$inferSelect;
@@ -159,3 +215,5 @@ export type QualityCheck = typeof qualityChecks.$inferSelect;
 export type Scan = typeof scans.$inferSelect;
 export type OwnershipTransfer = typeof ownershipTransfers.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
+export type ProductOwner = typeof productOwners.$inferSelect;
+export type ProductComment = typeof productComments.$inferSelect;

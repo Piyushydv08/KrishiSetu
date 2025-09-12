@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -11,9 +10,10 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Bell, Sprout, ChevronDown, LogOut, User } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 export function NavigationHeader() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user, firebaseUser, login, logout, loading } = useAuth();
   const [notificationCount] = useState(3);
 
@@ -42,7 +42,7 @@ export function NavigationHeader() {
                 FarmTrace
               </h1>
             </div>
-            <Button onClick={login} data-testid="button-login">
+            <Button onClick={() => setLocation('/login')} data-testid="button-login">
               Sign In/Up
             </Button>
           </div>
@@ -75,15 +75,6 @@ export function NavigationHeader() {
                     Dashboard
                   </a>
                 </Link>
-                <Link href="/profile">
-                  <a className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActiveRoute('/profile') 
-                      ? 'text-primary border-b-2 border-primary' 
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`} data-testid="link-profile">
-                    Profile
-                  </a>
-                </Link>
                 <Link href="/qr-scanner">
                   <a className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     isActiveRoute('/qr-scanner') 
@@ -93,6 +84,28 @@ export function NavigationHeader() {
                     QR Scanner
                   </a>
                 </Link>
+                {["farmer", "distributor", "retailer"].includes(user.role) && (
+                  <Link href="/registered-products">
+                    <a className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActiveRoute('/registered-products') 
+                        ? 'text-primary border-b-2 border-primary' 
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`} data-testid="link-registered-products">
+                      Registered Products
+                    </a>
+                  </Link>
+                )}
+                {user.role === "consumer" && (
+                  <Link href="/scanned-products">
+                    <a className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActiveRoute('/scanned-products') 
+                        ? 'text-primary border-b-2 border-primary' 
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`} data-testid="link-scanned-products">
+                      Scanned Products
+                    </a>
+                  </Link>
+                )}
               </div>
             </div>
           </div>

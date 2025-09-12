@@ -1,14 +1,18 @@
 import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
+import { queryClient } from "./lib/queryClient";
+import { Toaster } from "react-hot-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
+
 import Dashboard from "@/pages/dashboard";
 import ProductRegistration from "@/pages/product-registration";
 import QRScannerPage from "@/pages/qr-scanner";
 import ProductDetails from "@/pages/product-details";
 import ProfilePage from "@/pages/profile";
+import LoginPage from "@/pages/login";
 import NotFound from "@/pages/not-found";
+import RegisteredProductsPage from "@/pages/registered-products";
+import ScannedProductsPage from "@/pages/scanned-products";
 
 function Router() {
   return (
@@ -19,6 +23,9 @@ function Router() {
       <Route path="/qr-scanner" component={QRScannerPage} />
       <Route path="/product/:id" component={ProductDetails} />
       <Route path="/profile" component={ProfilePage} />
+      <Route path="/login" component={LoginPage} />
+      <Route path="/registered-products" component={RegisteredProductsPage} />
+      <Route path="/scanned-products" component={ScannedProductsPage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -28,7 +35,19 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            style: {
+              background: "linear-gradient(135deg, var(--verified), var(--primary))",
+              color: "#fff",
+              fontWeight: "bold",
+              borderRadius: "0.5rem",
+              padding: "12px 16px",
+            },
+            duration: 2000,
+          }}
+        />
         <Router />
       </TooltipProvider>
     </QueryClientProvider>
@@ -36,3 +55,5 @@ function App() {
 }
 
 export default App;
+
+

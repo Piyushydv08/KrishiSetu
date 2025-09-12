@@ -5,20 +5,27 @@ import {
   type QualityCheck, type InsertQualityCheck,
   type Scan, type InsertScan,
   type OwnershipTransfer, type InsertOwnershipTransfer,
-  type Notification, type InsertNotification
+  type Notification, type InsertNotification,
+  ProductOwner, InsertProductOwner, ProductComment, InsertProductComment
 } from "@shared/schema";
 import 'dotenv/config';
 // Use uuid for compatibility
 import { randomUUID } from "crypto";
 import { MongoClient } from "mongodb";
-
+console.log("DEBUG MONGO_URI:", process.env.MONGO_URI);
+console.log("DEBUG MONGO_DB_NAME:", process.env.MONGO_DB_NAME);
 const uri = process.env.MONGO_URI || "mongodb://localhost:27017";
 const dbName = process.env.MONGO_DB_NAME || "farmtrace";
 const client = new MongoClient(uri);
 
+let didLogMongoConnection = false;
 
 async function getDb() {
   await client.connect();
+  if (!didLogMongoConnection) {
+    console.log(`[MongoDB] Connected to: ${uri} (database: ${dbName})`);
+    didLogMongoConnection = true;
+  }
   return client.db(dbName);
 }
 
@@ -101,6 +108,7 @@ export class MongoStorage {
     const db = await getDb();
     const product: Product = {
       ...insertProduct,
+      quantity: String(insertProduct.quantity),
       id: randomUUID(),
       batchId: (insertProduct as any).batchId || null,
       qrCode: (insertProduct as any).qrCode || null,
@@ -304,6 +312,45 @@ export class MongoStorage {
       completedTransfers,
       averageRating: 4.5 // Placeholder
     };
+  }
+
+  // ----------------- Ownership management -----------------
+  async addProductOwner(insertOwner: InsertProductOwner): Promise<ProductOwner> {
+    const db = await getDb();
+    const owner: ProductOwner = {
+      ...insertOwner,
+      id: randomUUID(),
+      createdAt: new Date(),
+    };
+    await db.collection<ProductOwner>("product_owners").insertOne(owner);
+    return owner;
+  }
+
+  async getProductOwners(productId: string): Promise<ProductOwner[]> {
+    const db = await getDb();
+    return await db.collection<ProductOwner>("product_owners").find({ productId }).toArray();
+  }
+
+  async getOwnerByUsername(username: string): Promise<ProductOwner | undefined> {
+    const db = await getDb();
+    return await db.collection<ProductOwner>("product_owners").findOne({ username }) ?? undefined;
+  }
+
+  // ----------------- Comments/communication -----------------
+  async addProductComment(insertComment: InsertProductComment): Promise<ProductComment> {
+    const db = await getDb();
+    const comment: ProductComment = {
+      ...insertComment,
+      id: randomUUID(),
+      createdAt: new Date(),
+    };
+    await db.collection<ProductComment>("product_comments").insertOne(comment);
+    return comment;
+  }
+
+  async getProductComments(productId: string): Promise<ProductComment[]> {
+    const db = await getDb();
+    return await db.collection<ProductComment>("product_comments").find({ productId }).sort({ createdAt: 1 }).toArray();
   }
 
   // ----------------- Helper methods -----------------

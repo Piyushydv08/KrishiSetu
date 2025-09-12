@@ -1,7 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertProductSchema, insertTransactionSchema, insertQualityCheckSchema, insertScanSchema } from "@shared/schema";
+import { insertProductSchema, insertTransactionSchema, insertQualityCheckSchema, insertScanSchema, insertProductOwnerSchema, insertProductCommentSchema } from "@shared/schema";
+import { v4 as uuidv4 } from "uuid";
+import crypto from "crypto";
+import QRCode from "qrcode";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -78,8 +81,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/products", async (req, res) => {
+    console.log("Request body:", req.body);
     try {
       const productData = insertProductSchema.parse(req.body);
+
+      // Generate batchId if not present
+      if (!productData.batchId) {
+        productData.batchId = uuidv4();
+      }
+
+      // Generate blockchainHash (example: SHA256 of product data)
+      if (!productData.blockchainHash) {
+        productData.blockchainHash = crypto
+          .createHash("sha256")
+          .update(JSON.stringify(productData))
+          .digest("hex");
+      }
+
+      // Generate QR code (as a data URL)
+      if (!productData.qrCode) {
+        const url = `${process.env.FRONTEND_URL || "http://localhost:5173"}/product/${productData.batchId}`;
+        productData.qrCode = await QRCode.toDataURL(url);
+      }
+
       const product = await storage.createProduct(productData);
       res.status(201).json(product);
     } catch (error) {
@@ -89,6 +113,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to create product" });
     }
   });
+
+
+app.put("/api/products/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    const updated = await storage.updateProduct(id, updateData);
+
+    if (!updated) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Notify all owners
+    const owners = await storage.getProductOwners(id);
+    for (const owner of owners) {
+      // Optionally skip notification for the user who made the change:
+      if (owner.ownerId === updateData.updatedBy) continue;
+      await storage.createNotification({
+        userId: owner.ownerId,
+        title: "Product Updated",
+        message: `A product you own (${updated.name}) was updated.`,
+        type: "product-update",
+        productId: id,
+        read: false,
+      });
+    }
+
+    res.status(200).json({ message: "Product updated", product: updated });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update product" });
+  }
+});
 
   // Transaction routes
   app.get("/api/products/:id/transactions", async (req, res) => {
@@ -277,6 +333,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to mark notification as read" });
     }
   });
+
+  // Product owners and comments routes
+  // Add a product owner
+app.post("/api/products/:id/owners", async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const ownerData = insertProductOwnerSchema.parse({ ...req.body, productId });
+    // Generate unique username if not provided
+    if (!ownerData.username) {
+      // Example: "piyush" + first 3 of userId
+      ownerData.username = (ownerData.name || "user") + ownerData.ownerId.slice(0, 3);
+    }
+    const owner = await storage.addProductOwner(ownerData);
+    res.status(201).json(owner);
+  } catch (error) {
+    res.status(400).json({ message: "Failed to add owner", error });
+  }
+});
+
+// Get all owners for a product
+app.get("/api/products/:id/owners", async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const owners = await storage.getProductOwners(productId);
+    res.json(owners);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch owners" });
+  }
+});
+
+// Add a comment
+app.post("/api/products/:id/comments", async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const commentData = insertProductCommentSchema.parse({ ...req.body, productId });
+    const comment = await storage.addProductComment(commentData);
+    res.status(201).json(comment);
+  } catch (error) {
+    res.status(400).json({ message: "Failed to add comment", error });
+  }
+});
+
+// Get all comments for a product
+app.get("/api/products/:id/comments", async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const comments = await storage.getProductComments(productId);
+    res.json(comments);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch comments" });
+  }
+});
 
   const httpServer = createServer(app);
   return httpServer;
