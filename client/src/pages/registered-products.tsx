@@ -68,15 +68,22 @@ export default function RegisteredProductsPage() {
       <div className="max-w-4xl mx-auto py-8">
         <h1 className="text-2xl font-bold mb-4">Registered Products</h1>
         <p className="mb-4 text-muted-foreground">
-          {user?.role === "farmer" && "Here are all the products you have registered as a farmer."}
-          {user?.role === "distributor" && "Here are all the products you have registered as a distributor."}
-          {user?.role === "retailer" && "Here are all the products you have registered as a retailer."}
+          {user?.role === "farmer" &&
+            "Here are all the products you have registered as a farmer."}
+          {user?.role === "distributor" &&
+            "Here are all the products you have registered as a distributor."}
+          {user?.role === "retailer" &&
+            "Here are all the products you have registered as a retailer."}
         </p>
         {isLoading && (
-          <div className="text-center text-muted-foreground">Loading products...</div>
+          <div className="text-center text-muted-foreground">
+            Loading products...
+          </div>
         )}
         {isError && (
-          <div className="text-center text-red-500">Failed to load products.</div>
+          <div className="text-center text-red-500">
+            Failed to load products.
+          </div>
         )}
         {!isLoading && !isError && products?.length === 0 && (
           <div className="bg-muted p-4 rounded-lg text-center text-muted-foreground">
@@ -86,35 +93,37 @@ export default function RegisteredProductsPage() {
         <div className="space-y-6">
           {products?.map((product) => {
             const owners = ownersMap[product.id] || [];
-            const currentOwner = owners.find(o => o.ownerId === user?.id);
+            const currentOwner = owners.find((o) => o.ownerId === user?.id);
             const canEditFields = currentOwner?.canEditFields || [];
 
             return (
               <Card key={product.id}>
                 <CardContent className="flex flex-col md:flex-row gap-6 items-center py-6">
                   <div>
-                    {product.qrCode ? (
-                      <img
-                        src={product.qrCode}
-                        alt="QR Code"
-                        className="w-32 h-32 rounded bg-white border"
-                      />
-                    ) : (
-                      <QRCodeGenerator product={product} />
+                    {/* Always show QRCodeGenerator if qrCode exists */}
+                    {product.qrCode && (
+                      <div className="mb-4">
+                        <QRCodeGenerator product={product} />
+                      </div>
                     )}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg font-semibold">{product.name}</span>
+                      <span className="text-lg font-semibold">
+                        {product.name}
+                      </span>
                       <Badge>{product.category}</Badge>
                       <Badge variant="outline">{product.status}</Badge>
                     </div>
                     <div className="text-sm text-muted-foreground mb-1">
                       <span className="font-medium">Quantity:</span>{" "}
-                      {editingProductId === product.id && canEditFields.includes("quantity") ? (
+                      {editingProductId === product.id &&
+                      canEditFields.includes("quantity") ? (
                         <input
                           value={editData.quantity}
-                          onChange={e => handleEditChange("quantity", e.target.value)}
+                          onChange={(e) =>
+                            handleEditChange("quantity", e.target.value)
+                          }
                           className="border px-2 py-1 rounded w-20"
                         />
                       ) : (
@@ -123,10 +132,13 @@ export default function RegisteredProductsPage() {
                     </div>
                     <div className="text-sm text-muted-foreground mb-1">
                       <span className="font-medium">Farm:</span>{" "}
-                      {editingProductId === product.id && canEditFields.includes("farmName") ? (
+                      {editingProductId === product.id &&
+                      canEditFields.includes("farmName") ? (
                         <input
                           value={editData.farmName}
-                          onChange={e => handleEditChange("farmName", e.target.value)}
+                          onChange={(e) =>
+                            handleEditChange("farmName", e.target.value)
+                          }
                           className="border px-2 py-1 rounded w-32"
                         />
                       ) : (
@@ -135,10 +147,13 @@ export default function RegisteredProductsPage() {
                     </div>
                     <div className="text-sm text-muted-foreground mb-1">
                       <span className="font-medium">Location:</span>{" "}
-                      {editingProductId === product.id && canEditFields.includes("location") ? (
+                      {editingProductId === product.id &&
+                      canEditFields.includes("location") ? (
                         <input
                           value={editData.location}
-                          onChange={e => handleEditChange("location", e.target.value)}
+                          onChange={(e) =>
+                            handleEditChange("location", e.target.value)
+                          }
                           className="border px-2 py-1 rounded w-32"
                         />
                       ) : (
@@ -147,27 +162,32 @@ export default function RegisteredProductsPage() {
                     </div>
                     <div className="text-sm text-muted-foreground mb-1">
                       <span className="font-medium">Harvest Date:</span>{" "}
-                      {editingProductId === product.id && canEditFields.includes("harvestDate") ? (
+                      {editingProductId === product.id &&
+                      canEditFields.includes("harvestDate") ? (
                         <input
                           type="date"
                           value={editData.harvestDate?.slice(0, 10)}
-                          onChange={e => handleEditChange("harvestDate", e.target.value)}
+                          onChange={(e) =>
+                            handleEditChange("harvestDate", e.target.value)
+                          }
                           className="border px-2 py-1 rounded w-32"
                         />
+                      ) : product.harvestDate ? (
+                        new Date(product.harvestDate).toLocaleDateString()
                       ) : (
-                        product.harvestDate
-                          ? new Date(product.harvestDate).toLocaleDateString()
-                          : "N/A"
+                        "N/A"
                       )}
                     </div>
                     {product.batchId && (
                       <div className="text-xs text-muted-foreground">
-                        <span className="font-medium">Batch ID:</span> {product.batchId}
+                        <span className="font-medium">Batch ID:</span>{" "}
+                        {product.batchId}
                       </div>
                     )}
                     {product.blockchainHash && (
                       <div className="text-xs text-muted-foreground break-all">
-                        <span className="font-medium">Blockchain Hash:</span> {product.blockchainHash}
+                        <span className="font-medium">Blockchain Hash:</span>{" "}
+                        {product.blockchainHash}
                       </div>
                     )}
 
@@ -175,7 +195,7 @@ export default function RegisteredProductsPage() {
                     <div className="mt-4">
                       <span className="font-semibold text-sm">Owners:</span>
                       <ul className="ml-4 list-disc text-xs">
-                        {owners.map(owner => (
+                        {owners.map((owner) => (
                           <li key={owner.id}>
                             {owner.username} ({owner.role})
                             {owner.ownerId === user?.id && " (You)"}
