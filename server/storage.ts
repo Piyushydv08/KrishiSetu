@@ -43,10 +43,22 @@ export class MongoStorage {
     return user ?? undefined;
   }
 
+  async getUserByUsername(username: string) {
+    const db = await getDb();
+    return db.collection("users").findOne({ username });
+  }
+  
   async getUserByFirebaseUid(firebaseUid: string): Promise<User | undefined> {
     const db = await getDb();
     const user = await db.collection<User>("users").findOne({ firebaseUid });
     return user ?? undefined;
+  }
+
+  async getUserByEmailOrFirebaseUid(email: string, firebaseUid: string) {
+    const db = await getDb();
+    return db.collection("users").findOne({
+      $or: [{ email }, { firebaseUid }]
+    });
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -54,6 +66,7 @@ export class MongoStorage {
     const user: User = {
       ...insertUser,
       id: randomUUID(),
+      username: insertUser.username,
       role: insertUser.role || "farmer",
       profileImage: insertUser.profileImage || null,
       phone: insertUser.phone || null,

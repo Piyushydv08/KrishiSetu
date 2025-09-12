@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -72,6 +72,23 @@ export default function ProfilePage() {
     }
   });
 
+  useEffect(() => {
+    if (user) {
+      form.reset({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        company: user.company || '',
+        location: user.location || '',
+        bio: user.bio || '',
+        website: user.website || '',
+        role: user.role || 'farmer',
+        language: user.language || 'en',
+        notificationsEnabled: user.notificationsEnabled !== false
+      });
+    }
+  }, [user, form]);
+
   if (!user || !firebaseUser) {
     return (
       <div className="min-h-screen bg-background">
@@ -137,6 +154,9 @@ export default function ProfilePage() {
                 <p className="text-sm text-muted-foreground" data-testid="text-profile-email">
                   {user.email}
                 </p>
+                <p className="text-sm text-muted-foreground" data-testid="text-profile-username">
+                  @{user.username}
+                </p>
               </CardHeader>
               
               <CardContent className="space-y-4">
@@ -193,34 +213,13 @@ export default function ProfilePage() {
                       <Edit3 className="w-4 h-4" />
                       Edit Profile
                     </Button>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setIsEditing(false);
-                          form.reset();
-                        }}
-                        disabled={isUpdating}
-                        data-testid="button-cancel-edit"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={form.handleSubmit(onSubmit)}
-                        disabled={isUpdating}
-                        data-testid="button-save-profile"
-                      >
-                        {isUpdating ? 'Saving...' : 'Save Changes'}
-                      </Button>
-                    </div>
-                  )}
+                  ) : null}
                 </div>
               </CardHeader>
               
               <CardContent>
                 <Form {...form}>
-                  <form className="space-y-6">
+                  <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField
                         control={form.control}
@@ -239,20 +238,17 @@ export default function ProfilePage() {
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={form.control}
                         name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Email Address</FormLabel>
+                            <FormLabel>Email</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
-                                type="email"
                                 disabled={true}
-                                className="bg-muted"
-                                data-testid="input-email"
+                                data-testid="input-name"
                               />
                             </FormControl>
                             <FormMessage />
@@ -457,6 +453,29 @@ export default function ProfilePage() {
                         )}
                       />
                     </div>
+
+                    {isEditing && (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setIsEditing(false);
+                            form.reset();
+                          }}
+                          disabled={isUpdating}
+                          data-testid="button-cancel-edit"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={isUpdating}
+                          data-testid="button-save-profile"
+                        >
+                          {isUpdating ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                      </div>
+                    )}
                   </form>
                 </Form>
               </CardContent>

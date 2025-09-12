@@ -55,7 +55,15 @@ export function RecentProducts() {
     );
   }
 
-  const recentProducts = products?.slice(0, 5) || [];
+  const recentProducts = products
+  ? [...products]
+      .sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      })
+      .slice(0, 7)
+  : [];
 
   return (
     <Card className="lg:col-span-2 shadow-sm border border-border overflow-hidden">
@@ -130,7 +138,9 @@ export function RecentProducts() {
                   
                   <div className="text-right">
                     <div className="text-sm font-medium text-foreground" data-testid={`text-product-date-${product.id}`}>
-                      {formatDistanceToNow(new Date(product.createdAt!), { addSuffix: true })}
+                      {product.createdAt
+                        ? formatDistanceToNow(new Date(product.createdAt), { addSuffix: true })
+                        : "Unknown date"}
                     </div>
                     <div className="text-xs text-muted-foreground" data-testid={`text-product-status-${product.id}`}>
                       {product.status}
