@@ -1,77 +1,90 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useCreateProduct } from '@/hooks/useProducts';
-import { useAuth } from '@/hooks/useAuth';
-import { insertProductSchema } from '@shared/schema';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { LoadingStates } from './LoadingStates';
-import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, X, Plus } from 'lucide-react';
+import { useRef, useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useCreateProduct } from "@/hooks/useProducts";
+import { useAuth } from "@/hooks/useAuth";
+import { insertProductSchema } from "@shared/schema";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { LoadingStates } from "./LoadingStates";
+import { useToast } from "@/hooks/use-toast";
+import { PlusCircle, X, Plus } from "lucide-react";
 
 const formSchema = insertProductSchema.extend({
   harvestDate: z.string().min(1, "Harvest date is required"),
   quantity: z.string().min(1, "Quantity is required"),
-  certifications: z.array(z.string()).default([])
+  certifications: z.array(z.string()).default([]),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
-const categories = [
-  'vegetables',
-  'fruits', 
-  'grains',
-  'dairy',
-  'meat'
-];
+const categories = ["vegetables", "fruits", "grains", "dairy", "meat"];
 
 const certificationOptions = [
-  'Organic',
-  'Non-GMO',
-  'Fair Trade',
-  'Sustainable'
+  "Organic",
+  "Non-GMO",
+  "Fair Trade",
+  "Sustainable",
 ];
 
-const units = [
-  'kg',
-  'lbs',
-  'units', 
-  'boxes'
-];
+const units = ["kg", "lbs", "units", "boxes"];
 
 interface ProductRegistrationFormProps {
   isVisible: boolean;
   onClose: () => void;
 }
 
-export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrationFormProps) {
+export function ProductRegistrationForm({
+  isVisible,
+  onClose,
+}: ProductRegistrationFormProps) {
   const { user } = useAuth();
   const { mutate: createProduct, isPending } = useCreateProduct();
   const { toast } = useToast();
 
+  const formRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isVisible && formRef.current) {
+      formRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [isVisible]);
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '',
-      category: '',
-      description: '',
-      quantity: '',
-      unit: 'kg',
-      farmName: '',
-      location: '',
-      harvestDate: '',
+      name: "",
+      category: "",
+      description: "",
+      quantity: "",
+      unit: "kg",
+      farmName: "",
+      location: "",
+      harvestDate: "",
       certifications: [],
-      status: 'registered',
-      ownerId: user?.id || ''
-    }
+      status: "registered",
+      ownerId: user?.id || "",
+    },
   });
 
   const onSubmit = async (data: FormData) => {
@@ -79,7 +92,7 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
       toast({
         title: "Error",
         description: "You must be logged in to register products",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -89,7 +102,7 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
         ...data,
         quantity: data.quantity,
         harvestDate: new Date(data.harvestDate),
-        ownerId: user.id
+        ownerId: user.id,
       };
 
       createProduct(productData, {
@@ -104,16 +117,17 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
         onError: (error) => {
           toast({
             title: "Registration Failed",
-            description: error.message || "Failed to register product. Please try again.",
-            variant: "destructive"
+            description:
+              error.message || "Failed to register product. Please try again.",
+            variant: "destructive",
           });
-        }
+        },
       });
     } catch (error) {
       toast({
         title: "Error",
         description: "An unexpected error occurred",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -122,7 +136,7 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
 
   return (
     <>
-      <div className="mt-8" id="product-registration-section">
+      <div className="mt-8" id="product-registration-section" ref={formRef}>
         <Card className="shadow-sm border border-border overflow-hidden">
           <CardHeader className="px-6 py-4 border-b border-border">
             <div className="flex items-center justify-between">
@@ -130,8 +144,8 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                 <PlusCircle className="w-5 h-5 text-primary" />
                 Register New Product Batch
               </h3>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 onClick={onClose}
                 data-testid="button-close-registration"
@@ -140,16 +154,20 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
               </Button>
             </div>
           </CardHeader>
-          
+
           <CardContent className="p-6">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-6"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  
                   {/* Basic Product Information */}
                   <div className="space-y-4">
-                    <h4 className="font-medium text-foreground">Product Information</h4>
-                    
+                    <h4 className="font-medium text-foreground">
+                      Product Information
+                    </h4>
+
                     <FormField
                       control={form.control}
                       name="name"
@@ -157,8 +175,8 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                         <FormItem>
                           <FormLabel>Product Name</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="e.g., Organic Cherry Tomatoes" 
+                            <Input
+                              placeholder="e.g., Organic Cherry Tomatoes"
                               {...field}
                               data-testid="input-product-name"
                             />
@@ -167,14 +185,17 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                         </FormItem>
                       )}
                     />
-                    
+
                     <FormField
                       control={form.control}
                       name="category"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Category</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger data-testid="select-category">
                                 <SelectValue placeholder="Select category" />
@@ -183,7 +204,8 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                             <SelectContent>
                               {categories.map((category) => (
                                 <SelectItem key={category} value={category}>
-                                  {category.charAt(0).toUpperCase() + category.slice(1)}
+                                  {category.charAt(0).toUpperCase() +
+                                    category.slice(1)}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -200,11 +222,11 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                         <FormItem>
                           <FormLabel>Description (Optional)</FormLabel>
                           <FormControl>
-                            <Textarea 
+                            <Textarea
                               placeholder="Brief description of the product..."
                               className="min-h-20"
                               {...field}
-                              value={field.value || ''}
+                              value={field.value || ""}
                               data-testid="textarea-description"
                             />
                           </FormControl>
@@ -212,7 +234,7 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                         </FormItem>
                       )}
                     />
-                    
+
                     <div className="grid grid-cols-2 gap-2">
                       <FormField
                         control={form.control}
@@ -221,7 +243,7 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                           <FormItem>
                             <FormLabel>Quantity</FormLabel>
                             <FormControl>
-                              <Input 
+                              <Input
                                 type="number"
                                 placeholder="Amount"
                                 {...field}
@@ -238,7 +260,10 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Unit</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                            >
                               <FormControl>
                                 <SelectTrigger data-testid="select-unit">
                                   <SelectValue />
@@ -258,11 +283,13 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                       />
                     </div>
                   </div>
-                  
+
                   {/* Origin & Location */}
                   <div className="space-y-4">
-                    <h4 className="font-medium text-foreground">Origin Information</h4>
-                    
+                    <h4 className="font-medium text-foreground">
+                      Origin Information
+                    </h4>
+
                     <FormField
                       control={form.control}
                       name="farmName"
@@ -270,7 +297,7 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                         <FormItem>
                           <FormLabel>Farm/Producer Name</FormLabel>
                           <FormControl>
-                            <Input 
+                            <Input
                               placeholder="e.g., Sunny Acres Organic Farm"
                               {...field}
                               data-testid="input-farm-name"
@@ -280,7 +307,7 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                         </FormItem>
                       )}
                     />
-                    
+
                     <FormField
                       control={form.control}
                       name="location"
@@ -288,7 +315,7 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                         <FormItem>
                           <FormLabel>Location</FormLabel>
                           <FormControl>
-                            <Input 
+                            <Input
                               placeholder="City, State"
                               {...field}
                               data-testid="input-location"
@@ -298,7 +325,7 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                         </FormItem>
                       )}
                     />
-                    
+
                     <FormField
                       control={form.control}
                       name="harvestDate"
@@ -306,7 +333,7 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                         <FormItem>
                           <FormLabel>Harvest/Production Date</FormLabel>
                           <FormControl>
-                            <Input 
+                            <Input
                               type="date"
                               {...field}
                               data-testid="input-harvest-date"
@@ -318,14 +345,16 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                     />
                   </div>
                 </div>
-                
+
                 {/* Certifications */}
                 <FormField
                   control={form.control}
                   name="certifications"
                   render={() => (
                     <FormItem>
-                      <FormLabel className="text-base">Certifications</FormLabel>
+                      <FormLabel className="text-base">
+                        Certifications
+                      </FormLabel>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {certificationOptions.map((certification) => (
                           <FormField
@@ -340,24 +369,32 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                                 >
                                   <FormControl>
                                     <Checkbox
-                                      checked={field.value?.includes(certification)}
+                                      checked={field.value?.includes(
+                                        certification
+                                      )}
                                       onCheckedChange={(checked) => {
                                         return checked
-                                          ? field.onChange([...field.value, certification])
+                                          ? field.onChange([
+                                              ...field.value,
+                                              certification,
+                                            ])
                                           : field.onChange(
                                               field.value?.filter(
-                                                (value) => value !== certification
+                                                (value) =>
+                                                  value !== certification
                                               )
-                                            )
+                                            );
                                       }}
-                                      data-testid={`checkbox-${certification.toLowerCase().replace(' ', '-')}`}
+                                      data-testid={`checkbox-${certification
+                                        .toLowerCase()
+                                        .replace(" ", "-")}`}
                                     />
                                   </FormControl>
                                   <FormLabel className="text-sm font-normal">
                                     {certification}
                                   </FormLabel>
                                 </FormItem>
-                              )
+                              );
                             }}
                           />
                         ))}
@@ -366,11 +403,11 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                     </FormItem>
                   )}
                 />
-                
+
                 {/* Submit Actions */}
                 <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                  <Button 
-                    type="button" 
+                  <Button
+                    type="button"
                     variant="outline"
                     onClick={onClose}
                     disabled={isPending}
@@ -378,8 +415,8 @@ export function ProductRegistrationForm({ isVisible, onClose }: ProductRegistrat
                   >
                     Cancel
                   </Button>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={isPending}
                     className="flex items-center gap-2"
                     data-testid="button-submit-registration"
