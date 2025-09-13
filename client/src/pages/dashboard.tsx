@@ -17,8 +17,6 @@ export default function Dashboard() {
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [showRoleSelection, setShowRoleSelection] = useState(false);
 
-  
-
   // Check if user needs role selection
   useEffect(() => {
     if (user && !user.roleSelected) {
@@ -28,9 +26,11 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background font-sans">
+      {/* Make Navbar sticky on top */}
       <NavigationHeader />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Add padding top to avoid content hidden behind sticky navbar */}
+      <main className="pt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Role-based dashboard header (if role selected) */}
         {user?.roleSelected && (
           <div className="mb-8">
