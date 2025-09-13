@@ -4,6 +4,7 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "react-hot-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
+import LandingPage from "@/pages/LandingPage";
 import Dashboard from "@/pages/dashboard";
 import ProductRegistration from "@/pages/product-registration";
 import QRScannerPage from "@/pages/qr-scanner";
@@ -13,23 +14,6 @@ import LoginPage from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import RegisteredProductsPage from "@/pages/registered-products";
 import ScannedProductsPage from "@/pages/scanned-products";
-
-function Router() {
-  return (
-    <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/product-registration" component={ProductRegistration} />
-      <Route path="/qr-scanner" component={QRScannerPage} />
-      <Route path="/product/:id" component={ProductDetails} />
-      <Route path="/profile" component={ProfilePage} />
-      <Route path="/login" component={LoginPage} />
-      <Route path="/registered-products" component={RegisteredProductsPage} />
-      <Route path="/scanned-products" component={ScannedProductsPage} />
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
 
 function App() {
   return (
@@ -48,12 +32,21 @@ function App() {
             duration: 2000,
           }}
         />
-        <Router />
+        <Switch>
+          <Route path="/" component={LandingPage} />
+          <Route path="/dashboard" component={Dashboard} />
+          <Route path="/product-registration" component={ProductRegistration} />
+          <Route path="/qr-scanner" component={QRScannerPage} />
+          <Route path="/product/:id" component={ProductDetails} />
+          <Route path="/profile" component={ProfilePage} />
+          <Route path="/login" component={LoginPage} />
+          <Route path="/registered-products" component={RegisteredProductsPage} />
+          <Route path="/scanned-products" component={ScannedProductsPage} />
+          <Route component={NotFound} />
+        </Switch>
       </TooltipProvider>
     </QueryClientProvider>
   );
 }
 
 export default App;
-
-
