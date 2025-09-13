@@ -1,5 +1,6 @@
 import { MongoClient } from "mongodb";
 import { randomUUID } from "crypto";
+import { createHash } from "crypto";
 import { config } from "dotenv";
 import { 
   User, InsertUser, 
@@ -30,6 +31,26 @@ async function getDb() {
 }
 
 export class MongoStorage {
+  // -------- Helper Methods --------
+  private generateOwnershipHash(productId: string, ownerId: string, blockNumber: number, previousHash: string | null): string {
+    const data = `${productId}-${ownerId}-${blockNumber}-${previousHash || 'genesis'}`;
+    return createHash('sha256').update(data).digest('hex');
+  }
+
+  private async getNextBlockNumber(productId: string): Promise<number> {
+    const db = await getDb();
+    const lastOwner = await db.collection<ProductOwner>("product_owners")
+      .findOne({ productId }, { sort: { blockNumber: -1 } });
+    return (lastOwner?.blockNumber || 0) + 1;
+  }
+
+  private async getLastOwnershipHash(productId: string): Promise<string | null> {
+    const db = await getDb();
+    const lastOwner = await db.collection<ProductOwner>("product_owners")
+      .findOne({ productId }, { sort: { blockNumber: -1 } });
+    return lastOwner?.ownershipHash || null;
+  }
+
   // -------- User Operations --------
   async getUser(id: string): Promise<User | null> {
     const db = await getDb();
@@ -80,7 +101,7 @@ export class MongoStorage {
       { returnDocument: "after" }
     );
     if (!result) return null;
-    return (result as any).value ?? null;
+    return result as User;
   }
 
   // -------- Product Operations --------
@@ -130,7 +151,7 @@ export class MongoStorage {
       { returnDocument: "after" }
     );
     if (!result) return null;
-    return (result as any).value ?? null;
+    return result as Product;
   }
 
   // -------- Transaction Operations --------
@@ -162,7 +183,7 @@ export class MongoStorage {
       id: randomUUID(),
       notes: insertQualityCheck.notes || null,
       certificationUrl: insertQualityCheck.certificationUrl || null,
-      verified: (insertQualityCheck as any).verified ?? false,
+      verified: false,
       timestamp: new Date()
     };
     await db.collection<QualityCheck>("qualitychecks").insertOne(qualityCheck);
@@ -215,21 +236,44 @@ export class MongoStorage {
     return notification;
   }
 
-  // -------- ProductOwner Operations --------
+  // -------- ProductOwner Operations (Blockchain-style) --------
   async addProductOwner(insertProductOwner: InsertProductOwner): Promise<ProductOwner> {
     const db = await getDb();
+    
+    // Get blockchain-style data
+    const blockNumber = await this.getNextBlockNumber(insertProductOwner.productId);
+    const previousOwnerHash = await this.getLastOwnershipHash(insertProductOwner.productId);
+    const ownershipHash = this.generateOwnershipHash(
+      insertProductOwner.productId,
+      insertProductOwner.ownerId,
+      blockNumber,
+      previousOwnerHash
+    );
+
     const owner: ProductOwner = {
       ...insertProductOwner,
       id: randomUUID(),
+      blockNumber,
+      previousOwnerHash,
+      ownershipHash,
+      transferType: insertProductOwner.transferType || (blockNumber === 1 ? "initial" : "transfer"),
       createdAt: new Date()
     };
+    
     await db.collection<ProductOwner>("product_owners").insertOne(owner);
     return owner;
   }
 
   async getProductOwners(productId: string): Promise<ProductOwner[]> {
     const db = await getDb();
-    return db.collection<ProductOwner>("product_owners").find({ productId }).toArray();
+    return db.collection<ProductOwner>("product_owners")
+      .find({ productId })
+      .sort({ blockNumber: 1 }) // Sort by blockchain order
+      .toArray();
+  }
+
+  async getOwnershipChain(productId: string): Promise<ProductOwner[]> {
+    return this.getProductOwners(productId); // Same as getProductOwners but with clear naming
   }
 
   // -------- ProductComment Operations --------
@@ -246,8 +290,13 @@ export class MongoStorage {
 
   async getProductComments(productId: string): Promise<ProductComment[]> {
     const db = await getDb();
-    return db.collection<ProductComment>("product_comments").find({ productId }).sort({ createdAt: 1 }).toArray();
+    return db.collection<ProductComment>("product_comments")
+      .find({ productId })
+      .sort({ createdAt: 1 })
+      .toArray();
   }
 }
 
 export const storage = new MongoStorage();
+
+

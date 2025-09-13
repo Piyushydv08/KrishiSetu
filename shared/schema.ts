@@ -151,21 +151,25 @@ export const insertNotificationSchema = notificationSchema.omit({ id: true, crea
 });
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 
-// -------------------- ProductOwner --------------------
+// -------------------- ProductOwner (Blockchain-style ownership record) --------------------
 export const productOwnerSchema = z.object({
   id: z.string(),
   productId: z.string(),
-  name: z.string(),
   ownerId: z.string(),
+  username: z.string(),
+  name: z.string(),
   addedBy: z.string(),
   role: z.string(),
   canEditFields: z.array(z.string()),
-  username: z.string(),
+  transferType: z.string().optional(), // "initial", "transfer", "sale", etc.
+  blockNumber: z.number().optional(), // Blockchain-style block number
+  previousOwnerHash: z.string().nullable().optional(), // Hash of previous ownership record
+  ownershipHash: z.string().optional(), // Hash of this ownership record
   createdAt: z.date()
 });
 export type ProductOwner = z.infer<typeof productOwnerSchema>;
 
-export const insertProductOwnerSchema = productOwnerSchema.omit({ id: true, createdAt: true }).extend({
+export const insertProductOwnerSchema = productOwnerSchema.omit({ id: true, createdAt: true, blockNumber: true, ownershipHash: true }).extend({
   createdAt: z.date().optional()
 });
 export type InsertProductOwner = z.infer<typeof insertProductOwnerSchema>;
@@ -174,8 +178,8 @@ export type InsertProductOwner = z.infer<typeof insertProductOwnerSchema>;
 export const productCommentSchema = z.object({
   id: z.string(),
   productId: z.string(),
-  ownerId: z.string(),
-  comment: z.string(),
+  userId: z.string(),
+  message: z.string(),
   createdAt: z.date()
 });
 export type ProductComment = z.infer<typeof productCommentSchema>;
