@@ -15,7 +15,7 @@ const LandingPage = () => {
         <div className="logo">FarmTrace</div>
         <ul className="nav-links">
           <li>Features</li>
-          <li>How It Works</li>
+         
           <li>Pricing</li>
           <li>About Us</li>
           <li>Contact</li>

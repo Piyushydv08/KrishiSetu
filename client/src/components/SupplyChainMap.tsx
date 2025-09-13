@@ -2,10 +2,9 @@ import { useState } from 'react';
 import { useProducts } from '@/hooks/useProducts';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MapPin, Sprout, Factory, Warehouse, Store, Plus, Minus, Expand, Calendar } from 'lucide-react';
+import { MapPin, Sprout, Factory, Warehouse, Store, Calendar } from 'lucide-react';
 
 interface JourneyStep {
   id: string;
@@ -26,51 +25,13 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
   const { user } = useAuth();
   const { data: products, isLoading } = useProducts(user?.id);
   const [selectedProductId, setSelectedProductId] = useState<string>(productId || '');
-
   const selectedProduct = products?.find(p => p.id === selectedProductId) || products?.[0];
 
-  // Mock journey steps - in a real app, this would come from transactions
   const journeySteps: JourneyStep[] = [
-    {
-      id: '1',
-      name: selectedProduct?.farmName || 'Sunny Acres Farm',
-      location: selectedProduct?.location || 'Fresno, CA',
-      date: 'Jan 10',
-      status: 'Harvested',
-      icon: Sprout,
-      bgColor: 'bg-primary',
-      textColor: 'text-primary-foreground'
-    },
-    {
-      id: '2', 
-      name: 'Fresh Pack Co.',
-      location: 'Salinas, CA',
-      date: 'Jan 12',
-      status: 'Processed',
-      icon: Factory,
-      bgColor: 'bg-accent',
-      textColor: 'text-accent-foreground'
-    },
-    {
-      id: '3',
-      name: 'Central Distribution',
-      location: 'Los Angeles, CA', 
-      date: 'Jan 14',
-      status: 'Shipped',
-      icon: Warehouse,
-      bgColor: 'bg-warning',
-      textColor: 'text-white'
-    },
-    {
-      id: '4',
-      name: 'Green Market',
-      location: 'San Francisco, CA',
-      date: 'In Transit',
-      status: 'Delivering',
-      icon: Store,
-      bgColor: 'bg-secondary',
-      textColor: 'text-secondary-foreground'
-    }
+    { id: '1', name: selectedProduct?.farmName || 'Sunny Acres Farm', location: selectedProduct?.location || 'Fresno, CA', date: 'Jan 10', status: 'Harvested', icon: Sprout, bgColor: 'bg-primary', textColor: 'text-primary-foreground' },
+    { id: '2', name: 'Fresh Pack Co.', location: 'Salinas, CA', date: 'Jan 12', status: 'Processed', icon: Factory, bgColor: 'bg-accent', textColor: 'text-accent-foreground' },
+    { id: '3', name: 'Central Distribution', location: 'Los Angeles, CA', date: 'Jan 14', status: 'Shipped', icon: Warehouse, bgColor: 'bg-warning', textColor: 'text-white' },
+    { id: '4', name: 'Green Market', location: 'San Francisco, CA', date: 'In Transit', status: 'Delivering', icon: Store, bgColor: 'bg-secondary', textColor: 'text-secondary-foreground' }
   ];
 
   const journeyStats = {
@@ -82,124 +43,135 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
 
   if (isLoading) {
     return (
-      <Card className="shadow-sm border border-border overflow-hidden">
+      <Card className="shadow-sm border border-border">
         <CardHeader>
           <Skeleton className="h-6 w-48" />
         </CardHeader>
         <CardContent>
-          <Skeleton className="h-96 w-full" />
+          <Skeleton className="h-64 w-full" />
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="shadow-sm border border-border overflow-hidden">
-      <CardHeader className="px-6 py-4 border-b border-border">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-accent" />
-            Supply Chain Journey
-          </h3>
-          <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-            <SelectTrigger className="w-64" data-testid="select-product-filter">
-              <SelectValue placeholder="Select a product" />
-            </SelectTrigger>
-            <SelectContent>
-              {products?.map((product) => (
-                <SelectItem key={product.id} value={product.id} data-testid={`select-option-${product.id}`}>
-                  {product.batchId} - {product.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+    <Card className="shadow-sm border border-border">
+      {/* Header */}
+      <CardHeader className="px-4 py-3 border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h3 className="flex items-center text-lg font-semibold text-foreground gap-2">
+          <MapPin className="w-5 h-5 text-accent" />
+          Supply Chain Journey
+        </h3>
+        <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+          <SelectTrigger className="w-full sm:w-64">
+            <SelectValue placeholder="Select a product" />
+          </SelectTrigger>
+          <SelectContent>
+            {products?.map(p => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.batchId} – {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </CardHeader>
-      
+
+      {/* Map & Steps */}
       <CardContent className="p-0">
-        <div className="h-96 map-container relative bg-gradient-to-b from-blue-50/50 to-green-50/50 dark:from-blue-950/20 dark:to-green-950/20">
-          {/* Mock Interactive Map */}
-          <div className="w-full h-full flex items-center justify-center">
-            {/* Illustrated supply chain path with locations */}
-            <div className="relative w-full max-w-4xl px-8">
-              {/* Background map illustration */}
-              <div className="absolute inset-0 opacity-10">
-                <div className="w-full h-full bg-gradient-to-r from-green-100 to-blue-100 dark:from-green-900 dark:to-blue-900 rounded-lg"></div>
-              </div>
-              
-              {/* Journey Steps */}
-              <div className="relative z-10 flex items-center justify-between h-full">
-                {journeySteps.map((step, index) => (
-                  <div key={step.id} className="flex items-center">
-                    <div className="text-center group">
-                      <div className={`w-12 h-12 ${step.bgColor} rounded-full flex items-center justify-center shadow-lg mb-2 group-hover:scale-110 transition-transform`} data-testid={`journey-step-${step.id}`}>
-                        <step.icon className={`w-5 h-5 ${step.textColor}`} />
+        <div className="relative bg-gradient-to-b from-blue-50/50 to-green-50/50 dark:from-blue-950/20 dark:to-green-950/20">
+          {/* Mobile: Vertical layout with arrows for ALL items */}
+          <div className="sm:hidden p-4">
+            <div className="flex flex-col gap-4">
+              {journeySteps.map((step, idx) => {
+                const Icon = step.icon;
+                
+                return (
+                  <div key={step.id} className="flex items-center justify-between w-full">
+                    {/* Step content */}
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className={`${step.bgColor} rounded-full p-3 shadow-lg flex-shrink-0`}>
+                        <Icon className={`w-5 h-5 ${step.textColor}`} />
                       </div>
-                      <div className="text-xs font-medium text-foreground" data-testid={`text-step-name-${step.id}`}>
-                        {step.name}
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-foreground truncate">{step.name}</div>
+                        <div className="text-xs text-muted-foreground truncate">{step.location}</div>
+                        <div className="flex items-center text-xs text-verified gap-1 mt-1">
+                          <Calendar className="w-3 h-3 flex-shrink-0" />
+                          <span>{step.date}</span>
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground" data-testid={`text-step-location-${step.id}`}>
-                        {step.location}
+                    </div>
+
+                    {/* Arrow - Show for ALL items */}
+                    <div className="flex-shrink-0 ml-3">
+                      <svg 
+                        className="w-5 h-5 text-black-600" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Desktop: Original horizontal layout */}
+          <div className="hidden sm:block py-4">
+            <div className="flex items-center justify-center gap-6 px-8">
+              {journeySteps.map((step, idx) => {
+                const Icon = step.icon;
+                return (
+                  <div key={step.id} className="flex items-center gap-4">
+                    <div className="flex flex-col items-center gap-2 shrink-0">
+                      <div className={`${step.bgColor} rounded-full p-3 shadow-lg transition-transform group-hover:scale-110`}>
+                        <Icon className={`w-5 h-5 ${step.textColor}`} />
                       </div>
-                      <div className="text-xs text-verified font-medium mt-1 flex items-center justify-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        <span data-testid={`text-step-date-${step.id}`}>{step.date}</span>
+                      <div className="text-center">
+                        <div className="text-sm font-medium text-foreground">{step.name}</div>
+                        <div className="text-xs text-muted-foreground">{step.location}</div>
+                        <div className="flex items-center justify-center text-xs text-verified gap-1 mt-1">
+                          <Calendar className="w-3 h-3" />
+                          <span>{step.date}</span>
+                        </div>
                       </div>
                     </div>
                     
-                    {/* Connection line */}
-                    {index < journeySteps.length - 1 && (
-                      <div className="flex items-center mx-4">
-                        <div className="w-16 h-px bg-border relative">
-                          <div className="absolute inset-0 bg-primary animate-pulse opacity-60"></div>
-                        </div>
+                    {/* Desktop connector - only between steps */}
+                    {idx !== journeySteps.length - 1 && (
+                      <div className="h-px bg-border w-12 relative">
+                        <div className="absolute inset-0 bg-primary animate-pulse opacity-60"></div>
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
-          
-          {/* Map Controls */}
-          <div className="absolute top-4 right-4 space-y-2">
-            <Button size="icon" variant="outline" className="w-8 h-8" data-testid="button-zoom-in">
-              <Plus className="w-4 h-4" />
-            </Button>
-            <Button size="icon" variant="outline" className="w-8 h-8" data-testid="button-zoom-out">
-              <Minus className="w-4 h-4" />
-            </Button>
-            <Button size="icon" variant="outline" className="w-8 h-8" data-testid="button-expand-map">
-              <Expand className="w-4 h-4" />
-            </Button>
-          </div>
         </div>
-        
-        {/* Journey Details */}
-        <div className="p-6 border-t border-border">
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-center">
+
+        {/* Stats */}
+        <div className="p-4 border-t border-border">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center text-sm">
             <div>
-              <div className="text-lg font-bold text-verified" data-testid="text-verified-stages">
-                {journeyStats.verifiedStages}
-              </div>
+              <div className="text-xl font-bold text-verified">{journeyStats.verifiedStages}</div>
               <div className="text-xs text-muted-foreground">Verified Stages</div>
             </div>
             <div>
-              <div className="text-lg font-bold text-foreground" data-testid="text-total-distance">
-                {journeyStats.totalDistance}
-              </div>
+              <div className="text-xl font-bold text-foreground">{journeyStats.totalDistance}</div>
               <div className="text-xs text-muted-foreground">Total Distance</div>
             </div>
             <div>
-              <div className="text-lg font-bold text-accent" data-testid="text-journey-time">
-                {journeyStats.journeyTime}
-              </div>
+              <div className="text-xl font-bold text-accent">{journeyStats.journeyTime}</div>
               <div className="text-xs text-muted-foreground">Journey Time</div>
             </div>
             <div>
-              <div className="text-lg font-bold text-primary" data-testid="text-avg-temperature">
-                {journeyStats.avgTemperature}
-              </div>
+              <div className="text-xl font-bold text-primary">{journeyStats.avgTemperature}</div>
               <div className="text-xs text-muted-foreground">Avg Temperature</div>
             </div>
           </div>
