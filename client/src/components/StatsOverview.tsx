@@ -50,7 +50,7 @@ export function StatsOverview() {
   const statCards = user ? [
     {
       label: "My Products",
-      value: stats.totalProducts.toLocaleString(),
+      value: (stats.totalProducts ?? 0).toLocaleString(),
       icon: Package,
       trend: "Registered by you",
       trendIcon: Package,
@@ -59,7 +59,7 @@ export function StatsOverview() {
     },
     {
       label: "Active Transfers",
-      value: (stats.activeTransfers || 0).toLocaleString(),
+      value: (stats.activeTransfers ?? 0).toLocaleString(),
       icon: ArrowRightLeft,
       trend: "In progress",
       trendIcon: ArrowRightLeft,
@@ -68,7 +68,7 @@ export function StatsOverview() {
     },
     {
       label: "Completed Transfers",
-      value: (stats.completedTransfers || 0).toLocaleString(),
+      value: (stats.completedTransfers ?? 0).toLocaleString(),
       icon: ShieldCheck,
       trend: "Successfully completed",
       trendIcon: ShieldCheck,
@@ -77,7 +77,7 @@ export function StatsOverview() {
     },
     {
       label: "Average Rating",
-      value: `${(stats.averageRating || 0).toFixed(1)}/5`,
+      value: `${(stats.averageRating ?? 0).toFixed(1)}/5`,
       icon: Medal,
       trend: "User rating",
       trendIcon: Medal,
@@ -87,7 +87,7 @@ export function StatsOverview() {
   ] : [
     {
       label: "Total Products",
-      value: stats.totalProducts.toLocaleString(),
+      value: (stats.totalProducts ?? 0).toLocaleString(),
       icon: Package,
       trend: "+12% from last month",
       trendIcon: TrendingUp,
@@ -96,7 +96,7 @@ export function StatsOverview() {
     },
     {
       label: "Verified Batches",
-      value: (stats.verifiedBatches || 0).toLocaleString(),
+      value: (stats.verifiedBatches ?? 0).toLocaleString(),
       icon: ShieldCheck,
       trend: "100% blockchain verified",
       trendIcon: ShieldCheck,
@@ -105,7 +105,7 @@ export function StatsOverview() {
     },
     {
       label: "Active Shipments",
-      value: (stats.activeShipments || 0).toLocaleString(),
+      value: (stats.activeShipments ?? 0).toLocaleString(),
       icon: Truck,
       trend: "23 arriving today",
       trendIcon: Truck,
@@ -114,7 +114,7 @@ export function StatsOverview() {
     },
     {
       label: "Quality Score",
-      value: `${(stats.averageQualityScore || 0).toFixed(1)}%`,
+      value: `${(stats.averageQualityScore ?? 0).toFixed(1)}%`,
       icon: Medal,
       trend: "Excellent rating",
       trendIcon: Medal,

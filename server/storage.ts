@@ -1,4 +1,4 @@
-import { MongoClient } from "mongodb";
+import { MongoClient, Db } from "mongodb";
 import { randomUUID } from "crypto";
 import { createHash } from "crypto";
 import { config } from "dotenv";
@@ -16,21 +16,15 @@ import {
 
 config();
 
-const uri = process.env.MONGO_URI || "mongodb://localhost:27017";
-const dbName = process.env.MONGO_DB_NAME || "farmtrace";
-const client = new MongoClient(uri);
+let db: Db | null = null;
 
-async function getDb() {
-  try {
-    await client.connect();
-    console.log(`[MongoDB] Connected to ${uri}, database ${dbName}`);
-    return client.db(dbName);
-  } catch (err) {
-    console.error("[MongoDB] Connection error:", err);
-    throw err; // Re-throw to handle elsewhere if needed
-  }
+export async function getDb(): Promise<Db> {
+  if (db) return db;
+  const client = new MongoClient(process.env.MONGO_URI!);
+  await client.connect();
+  db = client.db(process.env.MONGO_DB_NAME);
+  return db;
 }
-
 
 export class MongoStorage {
   // -------- Helper Methods --------
@@ -585,6 +579,8 @@ export const storage = new MongoStorage();
   try {
     console.log("[MongoDB] Testing connection...");
     await getDb();
+    console.log("[MongoDB]", process.env.MONGO_URI);
+    console.log("MONGO_DB_NAME:", process.env.MONGO_DB_NAME);
     console.log("[MongoDB] Connection test successful");
   } catch (error) {
     console.error("[MongoDB] Connection test failed:", error);
