@@ -58,14 +58,14 @@ export function RecentProducts() {
   }
 
   const recentProducts = products
-  ? [...products]
-      .sort((a, b) => {
-        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return bTime - aTime;
-      })
-      .slice(0, 7)
-  : [];
+    ? [...products]
+        .sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bTime - aTime;
+        })
+        .slice(0, 7)
+    : [];
 
   return (
     <Card className="lg:col-span-2 shadow-sm border border-border overflow-hidden">
@@ -162,9 +162,14 @@ export function RecentProducts() {
                   </div>
 
                   <div className="text-right">
-                    <div className="text-sm font-medium text-foreground" data-testid={`text-product-date-${product.id}`}>
+                    <div
+                      className="text-sm font-medium text-foreground"
+                      data-testid={`text-product-date-${product.id}`}
+                    >
                       {product.createdAt
-                        ? formatDistanceToNow(new Date(product.createdAt), { addSuffix: true })
+                        ? formatDistanceToNow(new Date(product.createdAt), {
+                            addSuffix: true,
+                          })
                         : "Unknown date"}
                     </div>
                     <div

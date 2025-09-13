@@ -1,10 +1,19 @@
-import { useStats } from '@/hooks/useProducts';
-import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Package, ShieldCheck, Truck, Medal, TrendingUp } from 'lucide-react';
+import { useStats } from "@/hooks/useProducts";
+import { useAuth } from "@/hooks/useAuth";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Package,
+  ShieldCheck,
+  Truck,
+  Medal,
+  TrendingUp,
+  ArrowRightLeft,
+} from "lucide-react";
 
 export function StatsOverview() {
-  const { data: stats, isLoading, error } = useStats();
+  const { user } = useAuth();
+  const { data: stats, isLoading, error } = useStats(user?.id || undefined);
 
   if (isLoading) {
     return (
@@ -38,43 +47,80 @@ export function StatsOverview() {
     return null;
   }
 
-  const statCards = [
+  const statCards = user ? [
     {
-      label: 'Total Products',
+      label: "My Products",
       value: stats.totalProducts.toLocaleString(),
       icon: Package,
-      trend: '+12% from last month',
-      trendIcon: TrendingUp,
-      iconBg: 'bg-primary/10',
-      iconColor: 'text-primary'
+      trend: "Registered by you",
+      trendIcon: Package,
+      iconBg: "bg-primary/10",
+      iconColor: "text-primary",
     },
     {
-      label: 'Verified Batches',
-      value: stats.verifiedBatches.toLocaleString(),
+      label: "Active Transfers",
+      value: (stats.activeTransfers || 0).toLocaleString(),
+      icon: ArrowRightLeft,
+      trend: "In progress",
+      trendIcon: ArrowRightLeft,
+      iconBg: "bg-accent/10",
+      iconColor: "text-accent",
+    },
+    {
+      label: "Completed Transfers",
+      value: (stats.completedTransfers || 0).toLocaleString(),
       icon: ShieldCheck,
-      trend: '100% blockchain verified',
+      trend: "Successfully completed",
       trendIcon: ShieldCheck,
-      iconBg: 'bg-verified/10',
-      iconColor: 'text-verified'
+      iconBg: "bg-verified/10",
+      iconColor: "text-verified",
     },
     {
-      label: 'Active Shipments',
-      value: stats.activeShipments.toLocaleString(),
-      icon: Truck,
-      trend: '23 arriving today',
-      trendIcon: Truck,
-      iconBg: 'bg-accent/10',
-      iconColor: 'text-accent'
-    },
-    {
-      label: 'Quality Score',
-      value: `${stats.averageQualityScore.toFixed(1)}%`,
+      label: "Average Rating",
+      value: `${(stats.averageRating || 0).toFixed(1)}/5`,
       icon: Medal,
-      trend: 'Excellent rating',
+      trend: "User rating",
       trendIcon: Medal,
-      iconBg: 'bg-verified/10',
-      iconColor: 'text-verified'
-    }
+      iconBg: "bg-warning/10",
+      iconColor: "text-warning",
+    },
+  ] : [
+    {
+      label: "Total Products",
+      value: stats.totalProducts.toLocaleString(),
+      icon: Package,
+      trend: "+12% from last month",
+      trendIcon: TrendingUp,
+      iconBg: "bg-primary/10",
+      iconColor: "text-primary",
+    },
+    {
+      label: "Verified Batches",
+      value: (stats.verifiedBatches || 0).toLocaleString(),
+      icon: ShieldCheck,
+      trend: "100% blockchain verified",
+      trendIcon: ShieldCheck,
+      iconBg: "bg-verified/10",
+      iconColor: "text-verified",
+    },
+    {
+      label: "Active Shipments",
+      value: (stats.activeShipments || 0).toLocaleString(),
+      icon: Truck,
+      trend: "23 arriving today",
+      trendIcon: Truck,
+      iconBg: "bg-accent/10",
+      iconColor: "text-accent",
+    },
+    {
+      label: "Quality Score",
+      value: `${(stats.averageQualityScore || 0).toFixed(1)}%`,
+      icon: Medal,
+      trend: "Excellent rating",
+      trendIcon: Medal,
+      iconBg: "bg-verified/10",
+      iconColor: "text-verified",
+    },
   ];
 
   return (
@@ -84,15 +130,29 @@ export function StatsOverview() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground" data-testid={`text-${stat.label.toLowerCase().replace(' ', '-')}-label`}>
+                <p
+                  className="text-sm font-medium text-muted-foreground"
+                  data-testid={`text-${stat.label
+                    .toLowerCase()
+                    .replace(" ", "-")}-label`}
+                >
                   {stat.label}
                 </p>
-                <p className="text-2xl font-bold text-foreground" data-testid={`text-${stat.label.toLowerCase().replace(' ', '-')}-value`}>
+                <p
+                  className="text-2xl font-bold text-foreground"
+                  data-testid={`text-${stat.label
+                    .toLowerCase()
+                    .replace(" ", "-")}-value`}
+                >
                   {stat.value}
                 </p>
                 <p className="text-xs text-verified flex items-center gap-1 mt-1">
                   <stat.trendIcon className="w-3 h-3" />
-                  <span data-testid={`text-${stat.label.toLowerCase().replace(' ', '-')}-trend`}>
+                  <span
+                    data-testid={`text-${stat.label
+                      .toLowerCase()
+                      .replace(" ", "-")}-trend`}
+                  >
                     {stat.trend}
                   </span>
                 </p>

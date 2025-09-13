@@ -129,6 +129,7 @@ export class MongoStorage {
       description: insertProduct.description || null,
       certifications: insertProduct.certifications || null,
       status: insertProduct.status || "registered",
+      ownerId: insertProduct.ownerId, // Ensure ownerId is properly set
       createdAt: new Date()
     };
     await db.collection<Product>("products").insertOne(product);
