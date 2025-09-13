@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { useParams } from 'wouter';
 import { NavigationHeader } from '@/components/NavigationHeader';
 import { QRCodeGenerator } from '@/components/QRCodeGenerator';
+import { SupplyChainMap } from '@/components/SupplyChainMap';
+import { OwnershipHistoryList } from '@/components/OwnershipHistoryList';
 import { useProduct } from '@/hooks/useProducts';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, MapPin, Calendar, Package, User, ShieldCheck, Clock, Truck } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Package, User, ShieldCheck, Clock, Truck, History, Shield } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'wouter';
 
@@ -205,6 +208,32 @@ export default function ProductDetails() {
                     </Badge>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+            
+            {/* Supply Chain Journey Map */}
+            <Card className="shadow-sm border border-border">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-primary" />
+                  Supply Chain Journey
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SupplyChainMap productId={productId} />
+              </CardContent>
+            </Card>
+            
+            {/* Ownership History */}
+            <Card className="shadow-sm border border-border">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
+                  <History className="h-5 w-5 text-primary" />
+                  Ownership Blockchain
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <OwnershipHistoryList productId={productId} />
               </CardContent>
             </Card>
             

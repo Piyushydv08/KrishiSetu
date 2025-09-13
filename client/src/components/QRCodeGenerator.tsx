@@ -21,8 +21,8 @@ export function QRCodeGenerator({ product }: QRCodeGeneratorProps) {
   const handleDownload = () => {
     // Create a download link for the QR code
     const link = document.createElement("a");
-    link.href = product.qrCode;
-    link.download = `QR-${product.batchId}.png`;
+    link.href = product.qrCode || '';
+    link.download = `QR-${product.batchId || 'product'}.png`;
     link.click();
   };
 
@@ -38,8 +38,8 @@ export function QRCodeGenerator({ product }: QRCodeGeneratorProps) {
       <CardContent className="text-center space-y-4">
         <div className="bg-white p-4 rounded-lg inline-block shadow-sm">
           <img
-            src={product.qrCode}
-            alt={`QR Code for ${product.name} - Batch ${product.batchId}`}
+            src={product.qrCode || ''}
+            alt={`QR Code for ${product.name} - Batch ${product.batchId || ''}`}
             className="w-48 h-48"
             data-testid="img-qr-code"
           />

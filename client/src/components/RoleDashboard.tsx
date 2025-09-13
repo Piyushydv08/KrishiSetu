@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { User } from "@shared/schema";
+import { OwnershipManagementPanel } from "@/components/OwnershipManagementPanel";
 import {
   Sprout,
   Truck,
@@ -364,6 +365,13 @@ export function RoleDashboard({
           </div>
         </CardHeader>
       </Card>
+      
+      {/* Ownership Management Panel - Show for roles that can transfer ownership */}
+      {(role === "farmer" || role === "distributor" || role === "retailer") && (
+        <div className="mb-6">
+          <OwnershipManagementPanel />
+        </div>
+      )}
 
       {/* Role-specific Content */}
       {role === "farmer" && renderFarmerDashboard()}
