@@ -75,7 +75,7 @@ export function RoleSelection({
 }: RoleSelectionProps) {
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [isUpdating, setIsUpdating] = useState(false);
-  const { user, firebaseUser } = useAuth();
+  const { user, firebaseUser, refreshUser } = useAuth(); // Add refreshUser
   const { toast } = useToast();
 
   if (!isVisible || !user || !firebaseUser) return null;
@@ -85,20 +85,10 @@ export function RoleSelection({
 
     setIsUpdating(true);
     try {
-      const idToken = await firebaseUser.getIdToken();
-      const response = await fetch("/api/user/role", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Firebase-UID": firebaseUser.uid,
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({ role: roleId }),
+      await apiRequest('PATCH', `/api/user/${user.id}`, {
+        role: roleId,
+        roleSelected: true
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
 
       toast({
         title: "Role Selected!",
@@ -107,6 +97,7 @@ export function RoleSelection({
         }`,
       });
 
+      // Call the callback to close modal/proceed
       onRoleSelected();
     } catch (error) {
       toast({
@@ -120,25 +111,26 @@ export function RoleSelection({
   };
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl">
-        <Card className="shadow-lg border border-border">
-          <CardHeader className="text-center pb-6">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Sprout className="w-8 h-8 text-primary" />
-              <h1 className="text-3xl font-bold text-foreground">FarmTrace</h1>
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+      {/* Mobile: Full height scrollable container */}
+      <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <Card className="shadow-lg border border-border mx-auto">
+          <CardHeader className="text-center pb-4 sm:pb-6">
+            <div className="flex items-center justify-center gap-2 mb-3 sm:mb-4">
+              <Sprout className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">FarmTrace</h1>
             </div>
-            <h2 className="text-xl font-semibold text-foreground mb-2">
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-2">
               Choose Your Role
             </h2>
             <p className="text-muted-foreground">
-              Select your role in the supply chain to customize your dashboard
-              and features
+              Select your role in the supply chain to customize your dashboard and features
             </p>
           </CardHeader>
 
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <CardContent className="p-4 sm:p-6">
+            {/* Mobile: Single column, Tablet+: 2 columns */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               {roles.map((role) => {
                 const IconComponent = role.icon;
                 const isSelected = selectedRole === role.id;
@@ -156,28 +148,26 @@ export function RoleSelection({
                   >
                     <CardContent className="p-6">
                       <div className="flex items-start gap-4">
-                        <div
-                          className={`${role.color} p-3 rounded-lg flex-shrink-0`}
-                        >
+                        <div className={`${role.color} p-3 rounded-lg flex-shrink-0`}>
                           <IconComponent className="w-6 h-6" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-semibold text-foreground text-lg">
+                            <h3 className="font-semibold text-foreground text-base sm:text-lg">
                               {role.title}
                             </h3>
                             {isSelected && (
-                              <Check className="w-5 h-5 text-primary" />
+                              <Check className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                          <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 leading-relaxed">
                             {role.description}
                           </p>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-1 sm:gap-2">
                             {role.features.map((feature) => (
-                              <Badge
-                                key={feature}
-                                variant="secondary"
+                              <Badge 
+                                key={feature} 
+                                variant="secondary" 
                                 className="text-xs"
                               >
                                 {feature}
@@ -193,13 +183,13 @@ export function RoleSelection({
             </div>
 
             <div className="flex justify-center mt-8">
-              <Button
+              <Button 
                 onClick={() => handleRoleSelection(selectedRole)}
                 disabled={!selectedRole || isUpdating}
-                className="px-8 py-3 text-lg"
+                className="px-6 py-2 sm:px-8 sm:py-3 text-base sm:text-lg w-full sm:w-auto"
                 data-testid="button-confirm-role"
               >
-                {isUpdating ? "Setting up your dashboard..." : "Continue"}
+                {isUpdating ? 'Setting up your dashboard...' : 'Continue'}
               </Button>
             </div>
           </CardContent>
