@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useProductByBatch } from "@/hooks/useProducts";
-import { Camera, StopCircle, AlertTriangle } from "lucide-react";
+import { Camera, StopCircle, AlertTriangle, FlipHorizontal } from "lucide-react";
 import { useLocation } from "wouter";
 import { BrowserQRCodeReader, IScannerControls } from "@zxing/browser";
 
@@ -12,6 +12,8 @@ export function QRCodeScanner() {
   const [scannedBatchId, setScannedBatchId] = useState<string>("");
   const [scanError, setScanError] = useState<string | null>(null);
   const [cameraStatus, setCameraStatus] = useState<"pending" | "granted" | "denied" | "notfound">("pending");
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCamera, setSelectedCamera] = useState<string>("");
   const [, navigate] = useLocation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef<BrowserQRCodeReader | null>(null);
@@ -21,12 +23,27 @@ export function QRCodeScanner() {
 
   const { data: product, isLoading, error } = useProductByBatch(scannedBatchId);
 
-  // Camera permission check on mount
+  // Camera permission check and device enumeration on mount
   useEffect(() => {
     async function checkCameraPermission() {
       try {
         await navigator.mediaDevices.getUserMedia({ video: true });
         setCameraStatus("granted");
+        
+        // Get available cameras
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        setAvailableCameras(videoDevices);
+        
+        // Set default camera (prefer rear camera if available)
+        if (videoDevices.length > 0) {
+          const rearCamera = videoDevices.find(device => 
+            device.label.toLowerCase().includes('back') || 
+            device.label.toLowerCase().includes('rear')
+          );
+          
+          setSelectedCamera(rearCamera ? rearCamera.deviceId : videoDevices[0].deviceId);
+        }
       } catch (err: any) {
         if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
           setCameraStatus("denied");
@@ -41,92 +58,131 @@ export function QRCodeScanner() {
   }, []);
 
   // Start camera and QR scanning
-  const startScanning = async () => {
+  const startScanning = () => {
     setScanError(null);
     setScannedBatchId("");
-    try {
-      setIsScanning(true);
-      codeReaderRef.current = new BrowserQRCodeReader();
-      const videoInputDevices = await BrowserQRCodeReader.listVideoInputDevices();
-      const selectedDeviceId = videoInputDevices[0]?.deviceId;
+    setIsScanning(true); // Just set scanning state
+  };
 
-      if (videoRef.current && selectedDeviceId) {
-        scanTimeoutRef.current = setTimeout(() => {
-          stopScanning();
-          setScanError("No QR code detected. Please try again.");
-          toast({
-            title: "No QR Code Detected",
-            description: "No QR code was found. Please try again.",
-            variant: "destructive",
-          });
-        }, 20000);
+  // Scanning logic moved to useEffect
+  useEffect(() => {
+    if (!isScanning) return;
+    if (!videoRef.current || !selectedCamera) return;
 
-        codeReaderRef.current
-          .decodeFromVideoDevice(
-            selectedDeviceId,
-            videoRef.current,
-            (result, err) => {
-              if (result) {
-                clearTimeout(scanTimeoutRef.current!);
-                const text = result.getText();
-                if (!text || text.trim() === "") {
-                  setScanError("Scanned QR code does not contain a batch ID.");
-                  toast({
-                    title: "Invalid QR Code",
-                    description: "Scanned QR code does not contain a batch ID.",
-                    variant: "destructive",
-                  });
-                  stopScanning();
-                  return;
-                }
+    codeReaderRef.current = new BrowserQRCodeReader();
 
-                // Extract batch ID from URL format: /product/{batchId}
-                const trimmedText = text.trim();
-                let batchId = trimmedText;
-
-                // Check if it's a full URL and extract the batch ID
-                const urlMatch = trimmedText.match(/\/product\/([a-f0-9\-]+)$/i);
-                if (urlMatch) {
-                  batchId = urlMatch[1];
-                } else if (trimmedText.includes('/product/')) {
-                  // Handle partial URLs
-                  const parts = trimmedText.split('/product/');
-                  if (parts.length > 1) {
-                    batchId = parts[1].split('/')[0]; // Take only the batch ID part
-                  }
-                }
-
-                if (!batchId || batchId === trimmedText) {
-                  // If we couldn't extract a batch ID, assume the scanned text is the batch ID
-                  batchId = trimmedText;
-                }
-
-                setScannedBatchId(batchId);
-                setScanError(null);
-                stopScanning();
-              }
-            }
-          )
-          .then((controls) => {
-            controlsRef.current = controls;
-          });
-
-        toast({
-          title: "Camera Started",
-          description: "Point your camera at a FarmTrace QR code",
-        });
-      } else {
-        throw new Error("No camera found");
-      }
-    } catch (error) {
+    scanTimeoutRef.current = setTimeout(() => {
+      stopScanning();
+      setScanError("No QR code detected. Please try again.");
       toast({
-        title: "Camera Error",
-        description: "Unable to access camera. Please ensure camera permissions are granted.",
+        title: "No QR Code Detected",
+        description: "No QR code was found. Please try again.",
         variant: "destructive",
       });
-      setScanError("Unable to access camera. Please ensure camera permissions are granted.");
-      setIsScanning(false);
-      console.error("Camera error:", error);
+    }, 20000);
+
+    codeReaderRef.current
+      .decodeFromVideoDevice(
+        selectedCamera,
+        videoRef.current,
+        (result, err) => {
+          if (result) {
+            clearTimeout(scanTimeoutRef.current!);
+            const text = result.getText();
+            if (!text || text.trim() === "") {
+              setScanError("Scanned QR code does not contain a batch ID.");
+              toast({
+                title: "Invalid QR Code",
+                description: "Scanned QR code does not contain a batch ID.",
+                variant: "destructive",
+              });
+              stopScanning();
+              return;
+            }
+
+            // Extract batch ID from URL format: /product/{batchId}
+            const trimmedText = text.trim();
+            let batchId = trimmedText;
+
+            // Check if it's a full URL and extract the batch ID
+            const urlMatch = trimmedText.match(/\/product\/([a-f0-9\-]+)$/i);
+            if (urlMatch) {
+              batchId = urlMatch[1];
+            } else if (trimmedText.includes('/product/')) {
+              // Handle partial URLs
+              const parts = trimmedText.split('/product/');
+              if (parts.length > 1) {
+                batchId = parts[1].split('/')[0]; // Take only the batch ID part
+              }
+            }
+
+            if (!batchId || batchId === trimmedText) {
+              // If we couldn't extract a batch ID, assume the scanned text is the batch ID
+              batchId = trimmedText;
+            }
+
+            setScannedBatchId(batchId);
+            setScanError(null);
+            stopScanning();
+          }
+        }
+      )
+      .then((controls) => {
+        controlsRef.current = controls;
+      })
+      .catch((error) => {
+        toast({
+          title: "Camera Error",
+          description: "Unable to access camera. Please ensure camera permissions are granted.",
+          variant: "destructive",
+        });
+        setScanError("Unable to access camera. Please ensure camera permissions are granted.");
+        setIsScanning(false);
+        console.error("Camera error:", error);
+      });
+
+    toast({
+      title: "Camera Started",
+      description: "Point your camera at a FarmTrace QR code",
+    });
+
+    // Cleanup on unmount or stop
+    return () => {
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+        scanTimeoutRef.current = null;
+      }
+      if (controlsRef.current) {
+        controlsRef.current.stop();
+        controlsRef.current = null;
+      }
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+        videoRef.current.srcObject = null;
+      }
+      if (codeReaderRef.current) {
+        codeReaderRef.current = null;
+      }
+    };
+    // eslint-disable-next-line
+  }, [isScanning, selectedCamera, toast]);
+
+  // Switch between front and rear cameras
+  const switchCamera = async () => {
+    if (availableCameras.length < 2) return;
+    
+    // Find the opposite camera
+    const currentIndex = availableCameras.findIndex(cam => cam.deviceId === selectedCamera);
+    const nextIndex = (currentIndex + 1) % availableCameras.length;
+    const nextCamera = availableCameras[nextIndex].deviceId;
+    
+    setSelectedCamera(nextCamera);
+    
+    // If currently scanning, restart with the new camera
+    if (isScanning) {
+      stopScanning();
+      setTimeout(startScanning, 100); // Small delay to ensure clean restart
     }
   };
 
@@ -164,12 +220,23 @@ export function QRCodeScanner() {
         description: `${product.name} - ${product.batchId}`,
       });
     } else if (error && scannedBatchId) {
-      setScanError(`No product found with batch ID: ${scannedBatchId}`);
-      toast({
-        title: "Product Not Found",
-        description: `No product found with batch ID: ${scannedBatchId}`,
-        variant: "destructive",
-      });
+      // Check if the error is specifically about the product not being found
+      if (error.message?.includes("not found") || error.message?.includes("404")) {
+        setScanError(`No product found with batch ID: ${scannedBatchId}`);
+        toast({
+          title: "Product Not Found",
+          description: `No product found with batch ID: ${scannedBatchId}`,
+          variant: "destructive",
+        });
+      } else {
+        // For other errors, show a generic message
+        setScanError(`Error looking up product: ${error.message}`);
+        toast({
+          title: "Lookup Error",
+          description: "There was an error looking up the product information.",
+          variant: "destructive",
+        });
+      }
       setScannedBatchId("");
     }
     // eslint-disable-next-line
@@ -253,24 +320,48 @@ export function QRCodeScanner() {
                 )}
                 <div className="flex justify-center gap-3">
                   {!isScanning ? (
-                    <Button
-                      onClick={startScanning}
-                      className="bg-accent text-accent-foreground hover:bg-accent/90 flex items-center gap-2"
-                      data-testid="button-start-camera"
-                    >
-                      <Camera className="w-4 h-4" />
-                      Start Camera
-                    </Button>
+                    <>
+                      <Button
+                        onClick={startScanning}
+                        className="bg-accent text-accent-foreground hover:bg-accent/90 flex items-center gap-2"
+                        data-testid="button-start-camera"
+                      >
+                        <Camera className="w-4 h-4" />
+                        Start Camera
+                      </Button>
+                      {availableCameras.length > 1 && (
+                        <Button
+                          onClick={switchCamera}
+                          variant="outline"
+                          className="flex items-center gap-2"
+                        >
+                          <FlipHorizontal className="w-4 h-4" />
+                          Switch Camera
+                        </Button>
+                      )}
+                    </>
                   ) : (
-                    <Button
-                      onClick={stopScanning}
-                      variant="outline"
-                      className="flex items-center gap-2"
-                      data-testid="button-stop-camera"
-                    >
-                      <StopCircle className="w-4 h-4" />
-                      Stop
-                    </Button>
+                    <>
+                      <Button
+                        onClick={stopScanning}
+                        variant="outline"
+                        className="flex items-center gap-2"
+                        data-testid="button-stop-camera"
+                      >
+                        <StopCircle className="w-4 h-4" />
+                        Stop
+                      </Button>
+                      {availableCameras.length > 1 && (
+                        <Button
+                          onClick={switchCamera}
+                          variant="outline"
+                          className="flex items-center gap-2"
+                        >
+                          <FlipHorizontal className="w-4 h-4" />
+                          Switch Camera
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
