@@ -40,7 +40,7 @@ export function useProductByBatch(batchId: string) {
 
 export function useCreateProduct() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (productData: InsertProduct) => {
       const response = await apiRequest('POST', '/api/products', productData);
@@ -49,23 +49,30 @@ export function useCreateProduct() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/products'] });
       queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+      // Also invalidate user-specific stats queries
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
     }
   });
 }
 
-export function useStats() {
+export function useStats(userId?: string) {
   return useQuery({
-    queryKey: ['/api/stats'],
+    queryKey: userId ? ['/api/user', userId, 'stats'] : ['/api/stats'],
     queryFn: async () => {
-      const response = await fetch('/api/stats');
+      const url = userId ? `/api/user/${userId}/stats` : '/api/stats';
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch stats');
       return response.json() as Promise<{
         totalProducts: number;
-        verifiedBatches: number;
-        activeShipments: number;
-        averageQualityScore: number;
+        verifiedBatches?: number;
+        activeShipments?: number;
+        averageQualityScore?: number;
+        activeTransfers?: number;
+        completedTransfers?: number;
+        averageRating?: number;
       }>;
-    }
+    },
+    enabled: !!userId || !userId // Always enabled for global stats, but userId required for user stats
   });
 }
 

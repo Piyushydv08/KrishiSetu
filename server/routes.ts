@@ -1,418 +1,630 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { insertProductSchema, insertTransactionSchema, insertQualityCheckSchema, insertScanSchema, insertProductOwnerSchema, insertProductCommentSchema } from "@shared/schema";
-import { v4 as uuidv4 } from "uuid";
-import crypto from "crypto";
-import QRCode from "qrcode";
+import { Express, Request, Response } from "express";
+import { createServer } from "http";
+import { MongoStorage } from "./storage";
 import { z } from "zod";
+import {
+  insertUserSchema, insertProductSchema, insertTransactionSchema,
+  insertQualityCheckSchema, insertScanSchema, insertOwnershipTransferSchema,
+  insertNotificationSchema, insertProductOwnerSchema, insertProductCommentSchema
+} from "@shared/schema";
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  
-  // User routes
-  app.get("/api/user/profile", async (req, res) => {
+// Initialize MongoDB storage
+const storage = new MongoStorage();
+
+export async function registerRoutes(app: Express) {
+  // --- Authentication Routes ---
+  app.post("/api/user/register", async (req: Request, res: Response) => {
     try {
-      const firebaseUid = req.headers["x-firebase-uid"] as string;
+      const { email, name, firebaseUid, profileImage, roleSelected } = req.body;
+      
+      // Validate required fields
+      if (!email || !name || !firebaseUid) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByFirebaseUid(firebaseUid);
+      
+      if (existingUser) {
+        return res.json(existingUser); // Return existing user if already registered
+      }
+      
+      // Create new user with username derived from email
+      const username = email.split('@')[0] + Math.floor(Math.random() * 1000);
+      
+      const user = await storage.createUser({
+        email,
+        name,
+        username,
+        role: "farmer", // default role
+        firebaseUid,
+        profileImage,
+        roleSelected: roleSelected || false,
+        language: "en",
+        notificationsEnabled: true
+      });
+      
+      return res.status(201).json(user);
+    } catch (error) {
+      console.error("Error registering user:", error);
+      return res.status(500).json({ message: "Failed to register user" });
+    }
+  });
+  
+  // Get user profile
+  app.get("/api/user/profile", async (req: Request, res: Response) => {
+    try {
+      const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
       if (!firebaseUid) {
         return res.status(401).json({ message: "Unauthorized" });
       }
+      
+      const user = await storage.getUserByFirebaseUid(firebaseUid);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      return res.json(user);
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      return res.status(500).json({ message: "Failed to fetch user profile" });
+    }
+  });
 
+  // Update user profile
+  app.put("/api/user/profile", async (req: Request, res: Response) => {
+    try {
+      const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
+      if (!firebaseUid) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
       const user = await storage.getUserByFirebaseUid(firebaseUid);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      res.json(user);
-    } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.post("/api/user/register", async (req, res) => {
-    try {
-      const userData = req.body;
-
-      // Check for existing user by email or firebaseUid
-      const existing = await storage.getUserByEmailOrFirebaseUid(userData.email, userData.firebaseUid);
-      if (existing) {
-        return res.status(409).json({ message: "User already exists" });
-      }
-
-      let username = userData.username;
-      if (!username) {
-        // Example: use name (lowercase, no spaces) + first 3 of firebaseUid or random digits
-        const base =
-          (userData.name || "user").toLowerCase().replace(/\s+/g, "");
-        const suffix =
-          userData.firebaseUid?.slice(0, 3) ||
-          Math.floor(100 + Math.random() * 900).toString();
-        username = base + suffix;
-
-        // Ensure uniqueness in the database
-        let exists = await storage.getUserByUsername(username);
-        let attempt = 1;
-        while (exists) {
-          username = base + suffix + attempt;
-          exists = await storage.getUserByUsername(username);
-          attempt++;
-        }
-      }
-
-      const user = await storage.createUser({ ...userData, username });
-      res.status(201).json(user);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to create user" });
-    }
-  });
-
-  // Product routes
-  app.get("/api/products", async (req, res) => {
-    try {
-      const userId = req.query.userId as string;
-      let products;
-      
-      if (userId) {
-        products = await storage.getProductsByUser(userId);
-      } else {
-        products = await storage.getAllProducts();
-      }
-      
-      res.json(products);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch products" });
-    }
-  });
-
-  app.get("/api/products/:id", async (req, res) => {
-    try {
-      const product = await storage.getProduct(req.params.id);
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
-      }
-      res.json(product);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch product" });
-    }
-  });
-
-  app.get("/api/products/batch/:batchId", async (req, res) => {
-    try {
-      const product = await storage.getProductByBatchId(req.params.batchId);
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
-      }
-      res.json(product);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch product" });
-    }
-  });
-
-  app.post("/api/products", async (req, res) => {
-    console.log("Request body:", req.body);
-    try {
-      const productData = insertProductSchema.parse(req.body);
-
-      // Generate batchId if not present
-      if (!productData.batchId) {
-        productData.batchId = uuidv4();
-      }
-
-      // Generate blockchainHash (example: SHA256 of product data)
-      if (!productData.blockchainHash) {
-        productData.blockchainHash = crypto
-          .createHash("sha256")
-          .update(JSON.stringify(productData))
-          .digest("hex");
-      }
-
-      // Generate QR code (as a data URL)
-      if (!productData.qrCode) {
-        const url = `${process.env.FRONTEND_URL || "http://localhost:5173"}/product/${productData.batchId}`;
-        productData.qrCode = await QRCode.toDataURL(url);
-      }
-
-      const product = await storage.createProduct(productData);
-      res.status(201).json(product);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid product data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to create product" });
-    }
-  });
-
-
-app.put("/api/products/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updateData = req.body;
-    const updated = await storage.updateProduct(id, updateData);
-
-    if (!updated) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    // Notify all owners
-    const owners = await storage.getProductOwners(id);
-    for (const owner of owners) {
-      // Optionally skip notification for the user who made the change:
-      if (owner.ownerId === updateData.updatedBy) continue;
-      await storage.createNotification({
-        userId: owner.ownerId,
-        title: "Product Updated",
-        message: `A product you own (${updated.name}) was updated.`,
-        type: "product-update",
-        productId: id,
-        read: false,
-      });
-    }
-
-    res.status(200).json({ message: "Product updated", product: updated });
-  } catch (error) {
-    res.status(500).json({ message: "Failed to update product" });
-  }
-});
-
-  // Transaction routes
-  app.get("/api/products/:id/transactions", async (req, res) => {
-    try {
-      const transactions = await storage.getTransactionsByProduct(req.params.id);
-      res.json(transactions);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch transactions" });
-    }
-  });
-
-  app.post("/api/transactions", async (req, res) => {
-    try {
-      const transactionData = insertTransactionSchema.parse(req.body);
-      const transaction = await storage.createTransaction(transactionData);
-      res.status(201).json(transaction);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid transaction data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to create transaction" });
-    }
-  });
-
-  // Quality check routes
-  app.get("/api/products/:id/quality-checks", async (req, res) => {
-    try {
-      const qualityChecks = await storage.getQualityChecksByProduct(req.params.id);
-      res.json(qualityChecks);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch quality checks" });
-    }
-  });
-
-  app.post("/api/quality-checks", async (req, res) => {
-    try {
-      const qualityCheckData = insertQualityCheckSchema.parse(req.body);
-      const qualityCheck = await storage.createQualityCheck(qualityCheckData);
-      res.status(201).json(qualityCheck);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid quality check data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to create quality check" });
-    }
-  });
-
-  // Scan routes
-  app.post("/api/scans", async (req, res) => {
-    try {
-      const scanData = insertScanSchema.parse(req.body);
-      const scan = await storage.createScan(scanData);
-      res.status(201).json(scan);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid scan data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to record scan" });
-    }
-  });
-
-  app.get("/api/scans/recent", async (req, res) => {
-    try {
-      const userId = req.query.userId as string;
-      const limit = parseInt(req.query.limit as string) || 10;
-      const scans = await storage.getRecentScans(userId, limit);
-      res.json(scans);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch recent scans" });
-    }
-  });
-
-  // User profile routes
-  app.patch("/api/user/:id", async (req, res) => {
-    try {
-      const userId = req.params.id;
       const updates = req.body;
+      // Ensure certain fields cannot be changed
+      delete updates.firebaseUid;
+      delete updates.id;
       
-      const updatedUser = await storage.updateUser(userId, updates);
-      if (!updatedUser) {
+      const updatedUser = await storage.updateUser(user.id, updates);
+      return res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      return res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // --- User Routes ---
+  app.post("/api/users", async (req: Request, res: Response) => {
+    const parse = insertUserSchema.safeParse(req.body);
+    if (!parse.success) {
+      return res.status(400).json({ message: "Invalid user data", errors: parse.error.format() });
+    }
+    const user = await storage.createUser(parse.data);
+    return res.status(201).json(user);
+  });
+
+  app.get("/api/users/:id", async (req: Request, res: Response) => {
+    const user = await storage.getUser(req.params.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    return res.json(user);
+  });
+
+  // --- Product Routes ---
+  app.post("/api/products", async (req: Request, res: Response) => {
+    try {
+      const parse = insertProductSchema.safeParse(req.body);
+      if (!parse.success) {
+        return res.status(400).json({ message: "Invalid product data", errors: parse.error.format() });
+      }
+      
+      const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
+      if (!firebaseUid) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUserByFirebaseUid(firebaseUid);
+      if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(updatedUser);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update user" });
-    }
-  });
-
-  // Analytics routes
-  app.get("/api/stats", async (req, res) => {
-    try {
-      const stats = await storage.getStats();
-      res.json(stats);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch stats" });
-    }
-  });
-
-  app.get("/api/user/:id/stats", async (req, res) => {
-    try {
-      const userId = req.params.id;
-      const stats = await storage.getUserStats(userId);
-      res.json(stats);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch user stats" });
-    }
-  });
-
-  // Ownership transfer routes
-  app.get("/api/ownership-transfers/product/:productId", async (req, res) => {
-    try {
-      const productId = req.params.productId;
-      const transfers = await storage.getOwnershipTransfersByProduct(productId);
-      res.json(transfers);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch ownership transfers" });
-    }
-  });
-
-  app.get("/api/ownership-transfers/user/:userId", async (req, res) => {
-    try {
-      const userId = req.params.userId;
-      const type = req.query.type as "from" | "to" | undefined;
-      const transfers = await storage.getOwnershipTransfersByUser(userId, type);
-      res.json(transfers);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch user ownership transfers" });
-    }
-  });
-
-  app.post("/api/ownership-transfers", async (req, res) => {
-    try {
-      const transferData = req.body;
-      const transfer = await storage.createOwnershipTransfer(transferData);
+      const productData = {
+        ...parse.data,
+        ownerId: user.id
+      };
+      const product = await storage.createProduct(productData);
       
-      // Create notification for recipient
-      await storage.createNotification({
-        userId: transferData.toUserId,
-        title: "Ownership Transfer Received",
-        message: `You have received ownership transfer for a product`,
-        type: "transfer",
-        productId: transferData.productId,
-        read: false
+      await storage.addProductOwner({
+        productId: product.id,
+        ownerId: user.id,
+        username: user.username,
+        name: user.name,
+        addedBy: user.id,
+        role: user.role,
+        canEditFields: ["quantity", "location", "description", "certifications"],
+        transferType: "initial",
+        createdAt: new Date()
       });
       
-      res.json(transfer);
+      return res.status(201).json(product);
     } catch (error) {
-      res.status(500).json({ message: "Failed to create ownership transfer" });
+      console.error("Error creating product:", error);
+      return res.status(500).json({ message: "Failed to create product" });
     }
   });
 
-  app.patch("/api/ownership-transfers/:id", async (req, res) => {
+  app.get("/api/products/:id", async (req: Request, res: Response) => {
+    const product = await storage.getProduct(req.params.id);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+    return res.json(product);
+  });
+
+  // List all products - used by dashboard
+  app.get("/api/products", async (req: Request, res: Response) => {
     try {
-      const transferId = req.params.id;
-      const updates = req.body;
-      const transfer = await storage.updateOwnershipTransfer(transferId, updates);
+      const ownerId = req.query.ownerId as string | undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
       
-      if (!transfer) {
-        return res.status(404).json({ message: "Transfer not found" });
+      let products;
+      if (ownerId) {
+        products = await storage.getProductsByOwner(ownerId);
+      } else {
+        products = await storage.getAllProducts(limit);
       }
       
-      res.json(transfer);
+      return res.json(products);
     } catch (error) {
-      res.status(500).json({ message: "Failed to update ownership transfer" });
+      console.error("Error fetching products:", error);
+      return res.status(500).json({ message: "Failed to fetch products" });
     }
   });
 
-  // Notifications routes
-  app.get("/api/notifications/:userId", async (req, res) => {
+  // Get user's owned products
+  app.get("/api/user/products/owned", async (req: Request, res: Response) => {
     try {
-      const userId = req.params.userId;
-      const notifications = await storage.getNotifications(userId);
-      res.json(notifications);
+      const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
+      if (!firebaseUid) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUserByFirebaseUid(firebaseUid);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const products = await storage.getProductsByOwner(user.id);
+      return res.json(products);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch notifications" });
+      console.error("Error fetching owned products:", error);
+      return res.status(500).json({ message: "Failed to fetch owned products" });
     }
   });
 
-  app.patch("/api/notifications/:id/read", async (req, res) => {
+  // Get user's scanned products
+  app.get("/api/user/products/scanned", async (req: Request, res: Response) => {
+    try {
+      const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
+      if (!firebaseUid) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUserByFirebaseUid(firebaseUid);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Get all scans for this user
+      const scans = await storage.getUserScans(user.id);
+      
+      // Use ES5 object for unique product IDs to avoid Set/ES2015 error
+      const productIdMap: Record<string, boolean> = {};
+      for (const scan of scans) {
+        if (scan.productId) productIdMap[scan.productId] = true;
+      }
+      const productIds = Object.keys(productIdMap);
+      
+      // Fetch product details for each scanned product
+      const products = [];
+      for (const productId of productIds) {
+        const product = await storage.getProduct(productId);
+        if (product) {
+          products.push(product);
+        }
+      }
+      
+      return res.json(products);
+    } catch (error) {
+      console.error("Error fetching scanned products:", error);
+      return res.status(500).json({ message: "Failed to fetch scanned products" });
+    }
+  });
+
+  // --- Transaction Routes ---
+  app.post("/api/transactions", async (req: Request, res: Response) => {
+    const parse = insertTransactionSchema.safeParse(req.body);
+    if (!parse.success) {
+      return res.status(400).json({ message: "Invalid transaction data", errors: parse.error.format() });
+    }
+    const transaction = await storage.createTransaction(parse.data);
+    return res.status(201).json(transaction);
+  });
+
+  // --- Quality Check Routes ---
+  app.post("/api/quality-checks", async (req: Request, res: Response) => {
+    const parse = insertQualityCheckSchema.safeParse(req.body);
+    if (!parse.success) {
+      return res.status(400).json({ message: "Invalid quality check data", errors: parse.error.format() });
+    }
+    const check = await storage.createQualityCheck(parse.data);
+    return res.status(201).json(check);
+  });
+
+  // --- Scan Routes ---
+  app.post("/api/scans", async (req: Request, res: Response) => {
+    const parse = insertScanSchema.safeParse(req.body);
+    if (!parse.success) {
+      return res.status(400).json({ message: "Invalid scan data", errors: parse.error.format() });
+    }
+    const scan = await storage.createScan(parse.data);
+    return res.status(201).json(scan);
+  });
+
+  // Recent scans endpoint
+  app.get("/api/scans/recent", async (req: Request, res: Response) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
+      const recentScans = await storage.getRecentScans(limit);
+      return res.json(recentScans);
+    } catch (error) {
+      console.error("Error fetching recent scans:", error);
+      return res.status(500).json({ message: "Failed to fetch recent scans" });
+    }
+  });
+
+  // --- Ownership Transfer Routes ---
+  app.post("/api/ownership-transfers", async (req: Request, res: Response) => {
+    try {
+      const parse = insertOwnershipTransferSchema.safeParse(req.body);
+      if (!parse.success) {
+        return res.status(400).json({ message: "Invalid ownership transfer data", errors: parse.error.format() });
+      }
+      
+      const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
+      if (!firebaseUid) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUserByFirebaseUid(firebaseUid);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const product = await storage.getProduct(parse.data.productId);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      
+      if (product.ownerId !== user.id) {
+        return res.status(403).json({ message: "You are not the current owner of this product" });
+      }
+      
+      const verificationResult = await storage.verifyOwnershipChain(product.id);
+      if (!verificationResult.valid) {
+        return res.status(400).json({ 
+          message: "Cannot transfer ownership: Blockchain integrity compromised", 
+          errors: verificationResult.errors 
+        });
+      }
+      
+      const newOwner = await storage.getUser(parse.data.toUserId);
+      if (!newOwner) {
+        return res.status(404).json({ message: "New owner not found" });
+      }
+      
+      const transfer = await storage.createOwnershipTransfer(parse.data);
+      await storage.updateProduct(product.id, { ownerId: newOwner.id });
+      
+      const newOwnerBlock = await storage.addProductOwner({
+        productId: product.id,
+        ownerId: newOwner.id,
+        username: newOwner.username,
+        name: newOwner.name,
+        addedBy: user.id,
+        role: newOwner.role,
+        canEditFields: ["quantity", "location"],
+        transferType: "transfer",
+        createdAt: new Date()
+      });
+      
+      await storage.createNotification({
+        userId: newOwner.id,
+        title: "New Product Ownership",
+        message: `${user.name} has transferred ownership of ${product.name} to you.`,
+        type: "ownership_transfer",
+        productId: product.id,
+        read: false,
+        createdAt: new Date()
+      });
+      
+      return res.status(201).json({
+        ...transfer,
+        ownershipBlock: {
+          blockNumber: newOwnerBlock.blockNumber,
+          ownershipHash: newOwnerBlock.ownershipHash,
+          previousOwnerHash: newOwnerBlock.previousOwnerHash
+        }
+      });
+    } catch (error) {
+      console.error("Error transferring ownership:", error);
+      return res.status(500).json({ message: "Failed to transfer ownership" });
+    }
+  });
+
+  // --- Notification Routes ---
+  app.post("/api/notifications", async (req: Request, res: Response) => {
+    const parse = insertNotificationSchema.safeParse(req.body);
+    if (!parse.success) {
+      return res.status(400).json({ message: "Invalid notification data", errors: parse.error.format() });
+    }
+    const notification = await storage.createNotification(parse.data);
+    return res.status(201).json(notification);
+  });
+
+  // Get user notifications
+  app.get("/api/notifications", async (req: Request, res: Response) => {
+    try {
+      const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
+      if (!firebaseUid) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUserByFirebaseUid(firebaseUid);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const notifications = await storage.getUserNotifications(user.id);
+      return res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      return res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  // Mark notification as read
+  app.put("/api/notifications/:id/read", async (req: Request, res: Response) => {
     try {
       const notificationId = req.params.id;
       await storage.markNotificationRead(notificationId);
-      res.json({ success: true });
+      return res.json({ message: "Notification marked as read" });
     } catch (error) {
-      res.status(500).json({ message: "Failed to mark notification as read" });
+      console.error("Error marking notification as read:", error);
+      return res.status(500).json({ message: "Failed to update notification" });
     }
   });
 
-  // Product owners and comments routes
-  // Add a product owner
-app.post("/api/products/:id/owners", async (req, res) => {
-  try {
-    const productId = req.params.id;
-    const ownerData = insertProductOwnerSchema.parse({ ...req.body, productId });
-    // Generate unique username if not provided
-    if (!ownerData.username) {
-      // Example: "piyush" + first 3 of userId
-      ownerData.username = (ownerData.name || "user") + ownerData.ownerId.slice(0, 3);
+  // --- Product Owner Routes ---
+  app.post("/api/product-owners", async (req: Request, res: Response) => {
+    const parse = insertProductOwnerSchema.safeParse(req.body);
+    if (!parse.success) {
+      return res.status(400).json({ message: "Invalid product owner data", errors: parse.error.format() });
     }
-    const owner = await storage.addProductOwner(ownerData);
-    res.status(201).json(owner);
-  } catch (error) {
-    res.status(400).json({ message: "Failed to add owner", error });
-  }
-});
+    const productOwner = await storage.addProductOwner(parse.data);
+    return res.status(201).json(productOwner);
+  });
 
-// Get all owners for a product
-app.get("/api/products/:id/owners", async (req, res) => {
-  try {
-    const productId = req.params.id;
-    const owners = await storage.getProductOwners(productId);
-    res.json(owners);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch owners" });
-  }
-});
+  app.get("/api/products/:id/owners", async (req: Request, res: Response) => {
+    try {
+      const owners = await storage.getProductOwners(req.params.id);
+      return res.json(owners);
+    } catch (error) {
+      console.error("Error fetching product owners:", error);
+      return res.status(500).json({ message: "Failed to fetch product owners" });
+    }
+  });
 
-// Add a comment
-app.post("/api/products/:id/comments", async (req, res) => {
-  try {
-    const productId = req.params.id;
-    const commentData = insertProductCommentSchema.parse({ ...req.body, productId });
-    const comment = await storage.addProductComment(commentData);
-    res.status(201).json(comment);
-  } catch (error) {
-    res.status(400).json({ message: "Failed to add comment", error });
-  }
-});
+  app.get("/api/products/:id/ownership-chain", async (req: Request, res: Response) => {
+    try {
+      const chain = await storage.getOwnershipChain(req.params.id);
+      return res.json(chain);
+    } catch (error) {
+      console.error("Error fetching ownership chain:", error);
+      return res.status(500).json({ message: "Failed to fetch ownership chain" });
+    }
+  });
 
-// Get all comments for a product
-app.get("/api/products/:id/comments", async (req, res) => {
-  try {
-    const productId = req.params.id;
-    const comments = await storage.getProductComments(productId);
-    res.json(comments);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch comments" });
-  }
-});
+  app.get("/api/products/:id/verify-ownership", async (req: Request, res: Response) => {
+    try {
+      const productId = req.params.id;
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      const verificationResult = await storage.verifyOwnershipChain(productId);
+      return res.json({
+        productId,
+        productName: product.name,
+        ownershipValid: verificationResult.valid,
+        errors: verificationResult.errors || [],
+        timestamp: new Date()
+      });
+    } catch (error) {
+      console.error("Error verifying ownership chain:", error);
+      return res.status(500).json({ message: "Failed to verify ownership chain" });
+    }
+  });
 
-  const httpServer = createServer(app);
-  return httpServer;
+  app.get("/api/users/:id/ownership-history", async (req: Request, res: Response) => {
+    try {
+      const userId = req.params.id;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const history = await storage.getOwnershipHistory(userId);
+      return res.json({
+        userId,
+        userName: user.name,
+        ownershipHistory: history,
+        timestamp: new Date()
+      });
+    } catch (error) {
+      console.error("Error fetching user's ownership history:", error);
+      return res.status(500).json({ message: "Failed to fetch ownership history" });
+    }
+  });
+
+  app.get("/api/products/:productId/has-owner/:userId", async (req: Request, res: Response) => {
+    try {
+      const { productId, userId } = req.params;
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const hasOwned = await storage.hasUserOwnedProduct(productId, userId);
+      return res.json({
+        productId,
+        productName: product.name,
+        userId,
+        userName: user.name,
+        hasOwned,
+        isCurrentOwner: product.ownerId === userId,
+        timestamp: new Date()
+      });
+    } catch (error) {
+      console.error("Error checking product ownership:", error);
+      return res.status(500).json({ message: "Failed to check product ownership" });
+    }
+  });
+
+  // --- Product Comment Routes ---
+  app.post("/api/product-comments", async (req: Request, res: Response) => {
+    const parse = insertProductCommentSchema.safeParse(req.body);
+    if (!parse.success) {
+      return res.status(400).json({ message: "Invalid product comment data", errors: parse.error.format() });
+    }
+    const comment = await storage.addProductComment(parse.data);
+    return res.status(201).json(comment);
+  });
+
+  app.get("/api/products/:id/comments", async (req: Request, res: Response) => {
+    const comments = await storage.getProductComments(req.params.id);
+    return res.json(comments);
+  });
+
+  app.get("/api/products/:id/journey", async (req: Request, res: Response) => {
+    try {
+      const productId = req.params.id;
+      const journeyLocations = await storage.getProductJourney(productId);
+      return res.json(journeyLocations);
+    } catch (error) {
+      console.error("Error getting product journey:", error);
+      if (error instanceof Error && error.message === "Product not found") {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      return res.status(500).json({ message: "Failed to get product journey" });
+    }
+  });
+
+  // --- Role Selection ---
+  app.put("/api/user/role", async (req: Request, res: Response) => {
+    try {
+      const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
+      if (!firebaseUid) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { role } = req.body;
+      if (!role) {
+        return res.status(400).json({ message: "Role is required" });
+      }
+      
+      const user = await storage.getUserByFirebaseUid(firebaseUid);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const updatedUser = await storage.updateUser(user.id, { 
+        role, 
+        roleSelected: true 
+      });
+      
+      return res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      return res.status(500).json({ message: "Failed to update role" });
+    }
+  });
+
+  // --- QR Code Routes ---
+  app.get("/api/products/:id/qrcode", async (req: Request, res: Response) => {
+    try {
+      const productId = req.params.id;
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      
+      // Return QR code data or generate it if not present
+      const qrCodeData = product.qrCode || `${req.protocol}://${req.get('host')}/product/${productId}`;
+      
+      if (!product.qrCode) {
+        // Save the QR code URL to the product if it wasn't already set
+        await storage.updateProduct(productId, { qrCode: qrCodeData });
+      }
+      
+      return res.json({ qrCodeData });
+    } catch (error) {
+      console.error("Error getting product QR code:", error);
+      return res.status(500).json({ message: "Failed to get QR code" });
+    }
+  });
+
+  // --- Stats endpoint for dashboard ---
+  app.get("/api/stats", async (req: Request, res: Response) => {
+    try {
+      const productsCount = await storage.countProducts();
+      const usersCount = await storage.countUsers();
+      const scansCount = await storage.countScans();
+      const transfersCount = await storage.countTransfers();
+      
+      return res.json({
+        products: productsCount,
+        users: usersCount,
+        scans: scansCount,
+        transfers: transfersCount,
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      return res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // --- Search endpoint ---
+  app.get("/api/search", async (req: Request, res: Response) => {
+    try {
+      const query = req.query.q as string;
+      if (!query) {
+        return res.status(400).json({ message: "Search query is required" });
+      }
+      
+      // Implement search across products
+      const results = await storage.searchProducts(query);
+      return res.json(results);
+    } catch (error) {
+      console.error("Error searching:", error);
+      return res.status(500).json({ message: "Failed to perform search" });
+    }
+  });
+
+  const server = createServer(app);
+  return server;
 }

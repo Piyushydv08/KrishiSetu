@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { useParams } from 'wouter';
 import { NavigationHeader } from '@/components/NavigationHeader';
 import { QRCodeGenerator } from '@/components/QRCodeGenerator';
+import { SupplyChainMap } from '@/components/SupplyChainMap';
+import { OwnershipHistoryList } from '@/components/OwnershipHistoryList';
 import { useProduct } from '@/hooks/useProducts';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, MapPin, Calendar, Package, User, ShieldCheck, Clock, Truck } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Package, User, ShieldCheck, Clock, Truck, History, Shield } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'wouter';
 
@@ -186,21 +189,51 @@ export default function ProductDetails() {
                 <h3 className="text-xl font-semibold text-foreground">Blockchain Verification</h3>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-3 p-4 bg-verified/10 border border-verified/20 rounded-lg">
-                  <ShieldCheck className="w-6 h-6 text-verified" />
-                  <div className="flex-1">
-                    <div className="font-medium text-foreground">Verified on Blockchain</div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      Transaction Hash: 
-                      <span className="font-mono ml-1" data-testid="text-blockchain-hash">
-                        {product.blockchainHash}
-                      </span>
+                <div className="relative p-4 bg-verified/10 border border-verified/20 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="w-6 h-6 text-verified mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-foreground">Verified on Blockchain</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Transaction Hash:
+                        <span className="font-mono ml-1 break-all" data-testid="text-blockchain-hash">
+                          {product.blockchainHash}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <Badge className="bg-verified text-white">
-                    Verified
-                  </Badge>
+                  <div className="absolute top-4 right-4">
+                    <Badge className="bg-verified text-white border-0">
+                      Verified
+                    </Badge>
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
+            
+            {/* Supply Chain Journey Map */}
+            <Card className="shadow-sm border border-border">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-primary" />
+                  Supply Chain Journey
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SupplyChainMap productId={productId} />
+              </CardContent>
+            </Card>
+            
+            {/* Ownership History */}
+            <Card className="shadow-sm border border-border">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
+                  <History className="h-5 w-5 text-primary" />
+                  Ownership Blockchain
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <OwnershipHistoryList productId={productId} />
               </CardContent>
             </Card>
             

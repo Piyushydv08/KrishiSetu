@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react';
-import { User as FirebaseUser, onAuthStateChanged, signInWithRedirect, signOut, getRedirectResult, signInWithPopup } from 'firebase/auth';
+import { 
+  User as FirebaseUser, 
+  onAuthStateChanged, 
+  signInWithRedirect, 
+  signOut, 
+  getRedirectResult, 
+  signInWithPopup,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile
+} from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import { User } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
@@ -76,27 +86,91 @@ export function useAuth() {
     return unsubscribe;
   }, []);
 
-
-  const login = () => {
+  // Google login
+  const loginWithGoogle = () => {
+    setState(prev => ({ ...prev, loading: true, error: null }));
     signInWithPopup(auth, googleProvider)
       .then(result => {
+        // Google login successful - onAuthStateChanged will handle the rest
       })
       .catch(error => {
-        console.error(error);
+        console.error('Google login error:', error);
+        setState(prev => ({
+          ...prev,
+          loading: false,
+          error: error.message || 'Failed to login with Google'
+        }));
       });
   };
 
+  // Email/password login
+  const loginWithEmail = async (email: string, password: string) => {
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged will handle the user data fetching
+    } catch (error: any) {
+      console.error('Email login error:', error);
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: error.message || 'Failed to login with email/password'
+      }));
+      throw error;
+    }
+  };
+
+  // Email/password registration
+  const registerWithEmail = async (email: string, password: string, name: string) => {
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      // Create Firebase user
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Update profile with name
+      await updateProfile(userCredential.user, {
+        displayName: name
+      });
+      
+      // onAuthStateChanged will create the user in our backend
+      return userCredential.user;
+    } catch (error: any) {
+      console.error('Email registration error:', error);
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: error.message || 'Failed to register with email/password'
+      }));
+      throw error;
+    }
+  };
+
   const logout = async () => {
+    setState(prev => ({ ...prev, loading: true }));
     try {
       await signOut(auth);
-    } catch (error) {
-      console.error(error);
+      setState({
+        user: null,
+        firebaseUser: null,
+        loading: false,
+        error: null
+      });
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: error.message || 'Failed to logout'
+      }));
     }
   };
 
   return {
     ...state,
-    login,
+    login: loginWithGoogle, // Keep original name for backward compatibility
+    loginWithGoogle,
+    loginWithEmail,
+    registerWithEmail,
     logout
   };
 }

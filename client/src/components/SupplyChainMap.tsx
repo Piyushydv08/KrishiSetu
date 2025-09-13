@@ -18,10 +18,14 @@ interface JourneyStep {
   textColor: string;
 }
 
-export function SupplyChainMap() {
+interface SupplyChainMapProps {
+  productId?: string;
+}
+
+export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
   const { user } = useAuth();
   const { data: products, isLoading } = useProducts(user?.id);
-  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [selectedProductId, setSelectedProductId] = useState<string>(productId || '');
 
   const selectedProduct = products?.find(p => p.id === selectedProductId) || products?.[0];
 

@@ -59,7 +59,29 @@ export function QRCodeScanner() {
                   stopScanning();
                   return;
                 }
-                setScannedBatchId(text.trim());
+
+                // Extract batch ID from URL format: /product/{batchId}
+                const trimmedText = text.trim();
+                let batchId = trimmedText;
+
+                // Check if it's a full URL and extract the batch ID
+                const urlMatch = trimmedText.match(/\/product\/([a-f0-9\-]+)$/i);
+                if (urlMatch) {
+                  batchId = urlMatch[1];
+                } else if (trimmedText.includes('/product/')) {
+                  // Handle partial URLs
+                  const parts = trimmedText.split('/product/');
+                  if (parts.length > 1) {
+                    batchId = parts[1].split('/')[0]; // Take only the batch ID part
+                  }
+                }
+
+                if (!batchId || batchId === trimmedText) {
+                  // If we couldn't extract a batch ID, assume the scanned text is the batch ID
+                  batchId = trimmedText;
+                }
+
+                setScannedBatchId(batchId);
                 setScanError(null);
                 stopScanning();
               }
