@@ -24,7 +24,7 @@ export function NavigationHeader() {
       <nav className="bg-card border-b border-border sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-center h-16 items-center">
-            <div className="animate-pulse">Loading...</div>
+            <div className="animate-pulse">FarmTrace...</div>
           </div>
         </div>
       </nav>

@@ -1,4 +1,4 @@
-import { useEffect, useState , useRef} from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -11,7 +11,7 @@ export function QRCodeScanner() {
   const [isScanning, setIsScanning] = useState(false);
   const [scannedBatchId, setScannedBatchId] = useState<string>("");
   const [scanError, setScanError] = useState<string | null>(null);
-  const [cameraStatus, setCameraStatus] = useState<"pending" | "granted" | "denied" | "notfound">("pending");
+  const [cameraStatus, setCameraStatus] = useState<"idle" | "pending" | "granted" | "denied" | "notfound">("idle");
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string>("");
   const [, navigate] = useLocation();
@@ -23,51 +23,48 @@ export function QRCodeScanner() {
 
   const { data: product, isLoading, error } = useProductByBatch(scannedBatchId);
 
-  // Camera permission check and device enumeration on mount
-  useEffect(() => {
-    async function checkCameraPermission() {
-      try {
-        await navigator.mediaDevices.getUserMedia({ video: true });
-        setCameraStatus("granted");
-        
-        // Get available cameras
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        setAvailableCameras(videoDevices);
-        
-        // Set default camera (prefer rear camera if available)
-        if (videoDevices.length > 0) {
-          const rearCamera = videoDevices.find(device => 
-            device.label.toLowerCase().includes('back') || 
-            device.label.toLowerCase().includes('rear')
-          );
-          
-          setSelectedCamera(rearCamera ? rearCamera.deviceId : videoDevices[0].deviceId);
-        }
-      } catch (err: any) {
-        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-          setCameraStatus("denied");
-        } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-          setCameraStatus("notfound");
-        } else {
-          setCameraStatus("denied");
-        }
-      }
-    }
-    checkCameraPermission();
-  }, []);
-
-  // Start camera and QR scanning
-  const startScanning = () => {
+  // Start camera and enumerate devices only when scanning starts
+  const startScanning = async () => {
     setScanError(null);
     setScannedBatchId("");
-    setIsScanning(true); // Just set scanning state
+    setCameraStatus("pending");
+    setIsScanning(true);
+
+    try {
+      // Ask for camera permission and enumerate devices
+      await navigator.mediaDevices.getUserMedia({ video: true });
+      setCameraStatus("granted");
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      setAvailableCameras(videoDevices);
+
+      // Set default camera (prefer rear camera if available)
+      if (videoDevices.length > 0) {
+        const rearCamera = videoDevices.find(device =>
+          device.label.toLowerCase().includes('back') ||
+          device.label.toLowerCase().includes('rear')
+        );
+        setSelectedCamera(rearCamera ? rearCamera.deviceId : videoDevices[0].deviceId);
+      } else {
+        setCameraStatus("notfound");
+        setIsScanning(false);
+      }
+    } catch (err: any) {
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        setCameraStatus("denied");
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        setCameraStatus("notfound");
+      } else {
+        setCameraStatus("denied");
+      }
+      setIsScanning(false);
+    }
   };
 
   // Scanning logic moved to useEffect
   useEffect(() => {
-    if (!isScanning) return;
-    if (!videoRef.current || !selectedCamera) return;
+    if (!isScanning || cameraStatus !== "granted" || !selectedCamera || !videoRef.current) return;
 
     codeReaderRef.current = new BrowserQRCodeReader();
 
@@ -157,38 +154,37 @@ export function QRCodeScanner() {
         controlsRef.current = null;
       }
       if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
-        videoRef.current.srcObject = null;
+        try {
+          const stream = videoRef.current.srcObject as MediaStream;
+          stream.getTracks().forEach((track) => {
+            track.stop();
+          });
+          videoRef.current.srcObject = null;
+        } catch (e) {
+          console.error("Error stopping video tracks:", e);
+        }
       }
       if (codeReaderRef.current) {
         codeReaderRef.current = null;
       }
     };
     // eslint-disable-next-line
-  }, [isScanning, selectedCamera, toast]);
+  }, [isScanning, selectedCamera, cameraStatus, toast]);
 
-  // Switch between front and rear cameras
-  const switchCamera = async () => {
-    if (availableCameras.length < 2) return;
-    
-    // Find the opposite camera
+  // Switch between front and rear cameras (only when scanning)
+  const switchCamera = () => {
+    if (!isScanning || availableCameras.length < 2) return;
     const currentIndex = availableCameras.findIndex(cam => cam.deviceId === selectedCamera);
     const nextIndex = (currentIndex + 1) % availableCameras.length;
-    const nextCamera = availableCameras[nextIndex].deviceId;
-    
-    setSelectedCamera(nextCamera);
-    
-    // If currently scanning, restart with the new camera
-    if (isScanning) {
-      stopScanning();
-      setTimeout(startScanning, 100); // Small delay to ensure clean restart
-    }
+    setSelectedCamera(availableCameras[nextIndex].deviceId);
   };
 
   // Stop camera and scanning
   const stopScanning = () => {
     setIsScanning(false);
+    setCameraStatus("idle");
+    setAvailableCameras([]);
+    setSelectedCamera("");
 
     if (scanTimeoutRef.current) {
       clearTimeout(scanTimeoutRef.current);
@@ -200,10 +196,17 @@ export function QRCodeScanner() {
       controlsRef.current = null;
     }
 
+    // Force stop all video tracks and clear video
     if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach((track) => track.stop());
-      videoRef.current.srcObject = null;
+      try {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => {
+          track.stop();
+        });
+        videoRef.current.srcObject = null;
+      } catch (e) {
+        console.error("Error stopping video tracks:", e);
+      }
     }
 
     if (codeReaderRef.current) {
@@ -220,7 +223,6 @@ export function QRCodeScanner() {
         description: `${product.name} - ${product.batchId}`,
       });
     } else if (error && scannedBatchId) {
-      // Check if the error is specifically about the product not being found
       if (error.message?.includes("not found") || error.message?.includes("404")) {
         setScanError(`No product found with batch ID: ${scannedBatchId}`);
         toast({
@@ -229,7 +231,6 @@ export function QRCodeScanner() {
           variant: "destructive",
         });
       } else {
-        // For other errors, show a generic message
         setScanError(`Error looking up product: ${error.message}`);
         toast({
           title: "Lookup Error",
@@ -269,119 +270,104 @@ export function QRCodeScanner() {
         </div>
       )}
 
-      {/* Only show scanner UI if camera is granted */}
-      {cameraStatus === "granted" && (
-        <>
-          <Card className="shadow-sm border border-border">
-            <CardContent className="p-6">
-              <div className="text-center space-y-4">
-                <div
-                  className="relative bg-muted rounded-lg overflow-hidden"
-                  style={{ aspectRatio: "4/3" }}
-                >
-                  {isScanning ? (
-                    <>
-                      <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        className="w-full h-full object-cover"
-                        data-testid="video-camera"
-                      />
-                      {/* Scanning overlay */}
-                      <div className="absolute inset-0 border-2 border-accent rounded-lg">
-                        <div className="absolute inset-4 border border-accent/50 rounded-lg">
-                          <div className="scan-line absolute top-0 left-0 right-0 h-0.5 bg-accent"></div>
-                        </div>
-                      </div>
-                      {/* Corner brackets */}
-                      <div className="absolute top-8 left-8 w-6 h-6 border-l-2 border-t-2 border-accent"></div>
-                      <div className="absolute top-8 right-8 w-6 h-6 border-r-2 border-t-2 border-accent"></div>
-                      <div className="absolute bottom-8 left-8 w-6 h-6 border-l-2 border-b-2 border-accent"></div>
-                      <div className="absolute bottom-8 right-8 w-6 h-6 border-r-2 border-b-2 border-accent"></div>
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full py-12">
-                      <Camera className="w-16 h-16 text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground mb-4">
-                        Camera is ready to scan QR codes
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Position the QR code within the frame to scan
-                      </p>
-                    </div>
-                  )}
-                </div>
-                {scanError && (
-                  <div className="flex items-center justify-center text-red-600 text-sm mt-2 gap-2">
-                    <AlertTriangle className="w-4 h-4" />
-                    {scanError}
+      {/* Only show scanner UI if scanning and camera is granted */}
+      {isScanning && cameraStatus === "granted" && (
+        <Card className="shadow-sm border border-border">
+          <CardContent className="p-6">
+            <div className="text-center space-y-4">
+              <div
+                className="relative bg-muted rounded-lg overflow-hidden"
+                style={{ aspectRatio: "4/3" }}
+              >
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-cover"
+                  data-testid="video-camera"
+                />
+                {/* Scanning overlay */}
+                <div className="absolute inset-0 border-2 border-accent rounded-lg">
+                  <div className="absolute inset-4 border border-accent/50 rounded-lg">
+                    <div className="scan-line absolute top-0 left-0 right-0 h-0.5 bg-accent"></div>
                   </div>
-                )}
-                <div className="flex justify-center gap-3">
-                  {!isScanning ? (
-                    <>
-                      <Button
-                        onClick={startScanning}
-                        className="bg-accent text-accent-foreground hover:bg-accent/90 flex items-center gap-2"
-                        data-testid="button-start-camera"
-                      >
-                        <Camera className="w-4 h-4" />
-                        Start Camera
-                      </Button>
-                      {availableCameras.length > 1 && (
-                        <Button
-                          onClick={switchCamera}
-                          variant="outline"
-                          className="flex items-center gap-2"
-                        >
-                          <FlipHorizontal className="w-4 h-4" />
-                          Switch Camera
-                        </Button>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <Button
-                        onClick={stopScanning}
-                        variant="outline"
-                        className="flex items-center gap-2"
-                        data-testid="button-stop-camera"
-                      >
-                        <StopCircle className="w-4 h-4" />
-                        Stop
-                      </Button>
-                      {availableCameras.length > 1 && (
-                        <Button
-                          onClick={switchCamera}
-                          variant="outline"
-                          className="flex items-center gap-2"
-                        >
-                          <FlipHorizontal className="w-4 h-4" />
-                          Switch Camera
-                        </Button>
-                      )}
-                    </>
-                  )}
                 </div>
+                {/* Corner brackets */}
+                <div className="absolute top-8 left-8 w-6 h-6 border-l-2 border-t-2 border-accent"></div>
+                <div className="absolute top-8 right-8 w-6 h-6 border-r-2 border-t-2 border-accent"></div>
+                <div className="absolute bottom-8 left-8 w-6 h-6 border-l-2 border-b-2 border-accent"></div>
+                <div className="absolute bottom-8 right-8 w-6 h-6 border-r-2 border-b-2 border-accent"></div>
               </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-muted/30 border-muted">
-            <CardContent className="p-4">
-              <div className="text-center text-sm text-muted-foreground">
-                <p className="font-medium mb-2">Scanning Instructions:</p>
-                <ul className="text-xs space-y-1 list-disc list-inside">
-                  <li>Hold your device steady</li>
-                  <li>Position the QR code within the frame</li>
-                  <li>Ensure good lighting</li>
-                  <li>Keep the QR code flat and undamaged</li>
-                </ul>
+              {scanError && (
+                <div className="flex items-center justify-center text-red-600 text-sm mt-2 gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  {scanError}
+                </div>
+              )}
+              <div className="flex justify-center gap-3">
+                <Button
+                  onClick={stopScanning}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  data-testid="button-stop-camera"
+                >
+                  <StopCircle className="w-4 h-4" />
+                  Stop
+                </Button>
+                {availableCameras.length > 1 && (
+                  <Button
+                    onClick={switchCamera}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <FlipHorizontal className="w-4 h-4" />
+                    Switch Camera
+                  </Button>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        </>
+            </div>
+          </CardContent>
+        </Card>
       )}
+
+      {/* Show Start Camera button when not scanning */}
+      {!isScanning && (
+        <Card className="shadow-sm border border-border">
+          <CardContent className="p-6">
+            <div className="flex flex-col items-center justify-center h-full py-12">
+              <Camera className="w-16 h-16 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-4">
+                Camera is ready to scan QR codes
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Position the QR code within the frame to scan
+              </p>
+              <Button
+                onClick={startScanning}
+                className="bg-accent text-accent-foreground hover:bg-accent/90 flex items-center gap-2 mt-4"
+                data-testid="button-start-camera"
+              >
+                <Camera className="w-4 h-4" />
+                Start Camera
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="bg-muted/30 border-muted">
+        <CardContent className="p-4">
+          <div className="text-center text-sm text-muted-foreground">
+            <p className="font-medium mb-2">Scanning Instructions:</p>
+            <ul className="text-xs space-y-1 list-disc list-inside">
+              <li>Hold your device steady</li>
+              <li>Position the QR code within the frame</li>
+              <li>Ensure good lighting</li>
+              <li>Keep the QR code flat and undamaged</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
