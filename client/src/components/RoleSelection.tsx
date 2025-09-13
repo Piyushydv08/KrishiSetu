@@ -1,45 +1,67 @@
-import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
-import { Sprout, Truck, Store, Users, Check } from 'lucide-react';
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { Sprout, Truck, Store, Users, Check } from "lucide-react";
 
 const roles = [
   {
-    id: 'farmer',
-    title: 'Farmer',
-    description: 'Register products, track harvests, and manage supply chain origins',
+    id: "farmer",
+    title: "Farmer",
+    description:
+      "Register products, track harvests, and manage supply chain origins",
     icon: Sprout,
-    features: ['Product Registration', 'QR Code Generation', 'Market Price Alerts', 'Climate Advisory'],
-    color: 'bg-primary text-primary-foreground'
+    features: [
+      "Product Registration",
+      "QR Code Generation",
+      "Market Price Alerts",
+      "Climate Advisory",
+    ],
+    color: "bg-primary text-primary-foreground",
   },
   {
-    id: 'distributor',
-    title: 'Distributor',
-    description: 'Manage transportation and logistics between supply chain stages',
+    id: "distributor",
+    title: "Distributor",
+    description:
+      "Manage transportation and logistics between supply chain stages",
     icon: Truck,
-    features: ['QR Code Scanning', 'Transaction Recording', 'Supply Chain Mapping', 'Quality Assurance'],
-    color: 'bg-accent text-accent-foreground'
+    features: [
+      "QR Code Scanning",
+      "Transaction Recording",
+      "Supply Chain Mapping",
+      "Quality Assurance",
+    ],
+    color: "bg-accent text-accent-foreground",
   },
   {
-    id: 'retailer',
-    title: 'Retailer',
-    description: 'Verify products and manage final sales transactions',
+    id: "retailer",
+    title: "Retailer",
+    description: "Verify products and manage final sales transactions",
     icon: Store,
-    features: ['Product Verification', 'Sales Analytics', 'Certification Display', 'Customer Management'],
-    color: 'bg-warning text-white'
+    features: [
+      "Product Verification",
+      "Sales Analytics",
+      "Certification Display",
+      "Customer Management",
+    ],
+    color: "bg-warning text-white",
   },
   {
-    id: 'consumer',
-    title: 'Consumer',
-    description: 'Track product origins and verify authenticity',
+    id: "consumer",
+    title: "Consumer",
+    description: "Track product origins and verify authenticity",
     icon: Users,
-    features: ['Product Traceability', 'Origin Verification', 'Feedback System', 'Environmental Impact'],
-    color: 'bg-verified text-white'
-  }
+    features: [
+      "Product Traceability",
+      "Origin Verification",
+      "Feedback System",
+      "Environmental Impact",
+    ],
+    color: "bg-verified text-white",
+  },
 ];
 
 interface RoleSelectionProps {
@@ -47,8 +69,11 @@ interface RoleSelectionProps {
   onRoleSelected: () => void;
 }
 
-export function RoleSelection({ isVisible, onRoleSelected }: RoleSelectionProps) {
-  const [selectedRole, setSelectedRole] = useState<string>('');
+export function RoleSelection({
+  isVisible,
+  onRoleSelected,
+}: RoleSelectionProps) {
+  const [selectedRole, setSelectedRole] = useState<string>("");
   const [isUpdating, setIsUpdating] = useState(false);
   const { user, firebaseUser } = useAuth();
   const { toast } = useToast();
@@ -60,14 +85,26 @@ export function RoleSelection({ isVisible, onRoleSelected }: RoleSelectionProps)
 
     setIsUpdating(true);
     try {
-      await apiRequest('PATCH', `/api/user/${user.id}`, {
-        role: roleId,
-        roleSelected: true
+      const idToken = await firebaseUser.getIdToken();
+      const response = await fetch("/api/user/role", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Firebase-UID": firebaseUser.uid,
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ role: roleId }),
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       toast({
         title: "Role Selected!",
-        description: `Welcome to FarmTrace as a ${roles.find(r => r.id === roleId)?.title}`,
+        description: `Welcome to FarmTrace as a ${
+          roles.find((r) => r.id === roleId)?.title
+        }`,
       });
 
       onRoleSelected();
@@ -75,7 +112,7 @@ export function RoleSelection({ isVisible, onRoleSelected }: RoleSelectionProps)
       toast({
         title: "Error",
         description: "Failed to update role. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setIsUpdating(false);
@@ -95,7 +132,8 @@ export function RoleSelection({ isVisible, onRoleSelected }: RoleSelectionProps)
               Choose Your Role
             </h2>
             <p className="text-muted-foreground">
-              Select your role in the supply chain to customize your dashboard and features
+              Select your role in the supply chain to customize your dashboard
+              and features
             </p>
           </CardHeader>
 
@@ -106,17 +144,21 @@ export function RoleSelection({ isVisible, onRoleSelected }: RoleSelectionProps)
                 const isSelected = selectedRole === role.id;
 
                 return (
-                  <Card 
+                  <Card
                     key={role.id}
                     className={`cursor-pointer transition-all duration-200 border-2 hover:scale-105 ${
-                      isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
+                      isSelected
+                        ? "border-primary ring-2 ring-primary/20"
+                        : "border-border hover:border-primary/50"
                     }`}
                     onClick={() => setSelectedRole(role.id)}
                     data-testid={`role-card-${role.id}`}
                   >
                     <CardContent className="p-6">
                       <div className="flex items-start gap-4">
-                        <div className={`${role.color} p-3 rounded-lg flex-shrink-0`}>
+                        <div
+                          className={`${role.color} p-3 rounded-lg flex-shrink-0`}
+                        >
                           <IconComponent className="w-6 h-6" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -133,9 +175,9 @@ export function RoleSelection({ isVisible, onRoleSelected }: RoleSelectionProps)
                           </p>
                           <div className="flex flex-wrap gap-2">
                             {role.features.map((feature) => (
-                              <Badge 
-                                key={feature} 
-                                variant="secondary" 
+                              <Badge
+                                key={feature}
+                                variant="secondary"
                                 className="text-xs"
                               >
                                 {feature}
@@ -151,13 +193,13 @@ export function RoleSelection({ isVisible, onRoleSelected }: RoleSelectionProps)
             </div>
 
             <div className="flex justify-center mt-8">
-              <Button 
+              <Button
                 onClick={() => handleRoleSelection(selectedRole)}
                 disabled={!selectedRole || isUpdating}
                 className="px-8 py-3 text-lg"
                 data-testid="button-confirm-role"
               >
-                {isUpdating ? 'Setting up your dashboard...' : 'Continue'}
+                {isUpdating ? "Setting up your dashboard..." : "Continue"}
               </Button>
             </div>
           </CardContent>

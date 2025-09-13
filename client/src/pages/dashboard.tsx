@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { QrCode, Plus } from "lucide-react";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, refetchUser } = useAuth();
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [showRoleSelection, setShowRoleSelection] = useState(false);
 
@@ -107,9 +107,9 @@ export default function Dashboard() {
         {/* Role Selection Modal */}
         <RoleSelection
           isVisible={showRoleSelection}
-          onRoleSelected={() => {
+          onRoleSelected={async () => {
             setShowRoleSelection(false);
-            window.location.reload(); // Refresh to update user data
+            await refetchUser(); // Refresh user data
           }}
         />
       </main>

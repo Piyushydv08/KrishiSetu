@@ -29,43 +29,47 @@ export function useAuth() {
     error: null
   });
 
+  const fetchUserProfile = async (firebaseUser: FirebaseUser) => {
+    const idToken = await firebaseUser.getIdToken();
+    try {
+      const response = await fetch('/api/user/profile', {
+        headers: {
+          'X-Firebase-UID': firebaseUser.uid,
+          'Authorization': `Bearer ${idToken}`
+        }
+      });
+      let user: User;
+      if (response.ok) {
+        user = await response.json();
+      } else {
+        user = await apiRequest('POST', '/api/user/register', {
+          email: firebaseUser.email!,
+          name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
+          firebaseUid: firebaseUser.uid,
+          profileImage: firebaseUser.photoURL,
+          roleSelected: false
+        }).then(res => res.json());
+      }
+      setState({
+        user,
+        firebaseUser,
+        loading: false,
+        error: null
+      });
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Failed to load user profile'
+      }));
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {
-          const idToken = await firebaseUser.getIdToken();
-          try {
-            const response = await fetch('/api/user/profile', {
-              headers: {
-                'X-Firebase-UID': firebaseUser.uid,
-                'Authorization': `Bearer ${idToken}`
-              }
-            });
-            let user: User;
-            if (response.ok) {
-              user = await response.json();
-            } else {
-              user = await apiRequest('POST', '/api/user/register', {
-                email: firebaseUser.email!,
-                name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
-                firebaseUid: firebaseUser.uid,
-                profileImage: firebaseUser.photoURL,
-                roleSelected: false
-              }).then(res => res.json());
-            }
-            setState({
-              user,
-              firebaseUser,
-              loading: false,
-              error: null
-            });
-          } catch (error) {
-            setState(prev => ({
-              ...prev,
-              loading: false,
-              error: 'Failed to load user profile'
-            }));
-          }
+          await fetchUserProfile(firebaseUser);
         } else {
           setState({
             user: null,
@@ -85,6 +89,13 @@ export function useAuth() {
     });
     return unsubscribe;
   }, []);
+
+  const refetchUser = async () => {
+    if (state.firebaseUser) {
+      setState(prev => ({ ...prev, loading: true }));
+      await fetchUserProfile(state.firebaseUser!);
+    }
+  };
 
   // Google login
   const loginWithGoogle = () => {
@@ -171,6 +182,7 @@ export function useAuth() {
     loginWithGoogle,
     loginWithEmail,
     registerWithEmail,
-    logout
+    logout,
+    refetchUser
   };
 }
