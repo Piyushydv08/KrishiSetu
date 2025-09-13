@@ -1,10 +1,20 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
+// Debug logging
+console.log('MONGO_URI:', process.env.MONGO_URI);
+console.log('MONGO_DB_NAME:', process.env.MONGO_DB_NAME);
+
 import express, { type Request, Response, NextFunction } from "express";
-import dotenv from "dotenv";
+
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 // Load environment variables
-dotenv.config();
+
+
+console.log("ENV MONGO_URI:", process.env.MONGO_URI);
+console.log("ENV MONGO_DB_NAME:", process.env.MONGO_DB_NAME);
 
 const app = express();
 app.use(express.json());
