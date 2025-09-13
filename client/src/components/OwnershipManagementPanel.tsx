@@ -1,10 +1,8 @@
+// components/OwnershipManagementPanel.tsx
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useProducts } from '@/hooks/useProducts';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
@@ -12,20 +10,24 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Shield, Users, AlertCircle } from 'lucide-react';
+import { UserSearch } from './UserSearch';
+import { ProductSearch } from './ProductSearch';
 
 const transferFormSchema = z.object({
   productId: z.string().min(1, 'Product is required'),
   toUserId: z.string().min(1, 'New owner is required'),
+  toUserName: z.string().min(1, 'New owner is required'),
   transferType: z.string().min(1, 'Transfer type is required'),
   notes: z.string().optional()
 });
+
 
 export function OwnershipManagementPanel() {
   const { user } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [users, setUsers] = useState<any[]>([]);
-  const { data: products } = useProducts(user?.id);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const { toast } = useToast();
 
   const form = useForm({
@@ -33,32 +35,32 @@ export function OwnershipManagementPanel() {
     defaultValues: {
       productId: '',
       toUserId: '',
+      toUserName: '',
       transferType: 'transfer',
       notes: ''
     }
   });
 
-  const fetchUsers = async () => {
-    try {
-      // In a real app, you'd likely want to paginate this or filter to relevant users
-      const response = await fetch('/api/users', {
-        headers: {
-          'firebase-uid': user?.firebaseUid || ''
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.filter((u: any) => u.id !== user?.id)); // Filter out current user
-      }
-    } catch (error) {
-      console.error('Failed to fetch users:', error);
-    }
+  const handleUserSelect = (user: any) => {
+    setSelectedUser(user);
+    form.setValue('toUserId', user.id);
+    form.setValue('toUserName', user.name);
   };
 
-  const openTransferDialog = () => {
-    fetchUsers();
-    setIsDialogOpen(true);
+  const handleProductSelect = (product: any) => {
+    setSelectedProduct(product);
+    form.setValue('productId', product.id);
+  };
+
+  const clearUserSelection = () => {
+    setSelectedUser(null);
+    form.setValue('toUserId', '');
+    form.setValue('toUserName', '');
+  };
+
+  const clearProductSelection = () => {
+    setSelectedProduct(null);
+    form.setValue('productId', '');
   };
 
   const onSubmit = async (data: z.infer<typeof transferFormSchema>) => {
@@ -74,7 +76,10 @@ export function OwnershipManagementPanel() {
           'firebase-uid': user.firebaseUid
         },
         body: JSON.stringify({
-          ...data,
+          productId: data.productId,
+          toUserId: data.toUserId,
+          transferType: data.transferType,
+          notes: data.notes,
           fromUserId: user.id
         })
       });
@@ -87,13 +92,15 @@ export function OwnershipManagementPanel() {
       const result = await response.json();
       
       toast({
-        title: 'Ownership Transfer Successful',
-        description: `Transfer registered on the blockchain. Block #${result.ownershipBlock.blockNumber}`,
+        title: 'Ownership Transfer Request Sent',
+        description: `A transfer request has been sent to ${data.toUserName}. They need to accept it to complete the transfer.`,
         variant: 'default'
       });
       
       setIsDialogOpen(false);
       form.reset();
+      setSelectedUser(null);
+      setSelectedProduct(null);
       
     } catch (error: any) {
       toast({
@@ -105,9 +112,6 @@ export function OwnershipManagementPanel() {
       setIsSubmitting(false);
     }
   };
-
-  const selectedProductName = form.watch('productId') ? 
-    products?.find(p => p.id === form.watch('productId'))?.name : '';
 
   return (
     <>
@@ -124,12 +128,11 @@ export function OwnershipManagementPanel() {
             <div className="relative z-10">
               <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-sm text-muted-foreground mb-4">
-                Manage product ownership and transfer products securely on the blockchain
+                Manage product ownership and transfer products securely
               </p>
               <Button 
                 className="bg-accent text-accent-foreground hover:bg-accent/90"
-                onClick={openTransferDialog}
-                disabled={!products || products.length === 0}
+                onClick={() => setIsDialogOpen(true)}
               >
                 Transfer Ownership
               </Button>
@@ -139,7 +142,7 @@ export function OwnershipManagementPanel() {
           <div className="mt-4 p-4 bg-muted/30 rounded-lg">
             <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-2">
               <AlertCircle className="w-4 h-4" />
-              Each transfer is secured and verified on our blockchain-style ledger
+              Transfer requests require acceptance from the new owner
             </p>
           </div>
         </CardContent>
@@ -151,67 +154,39 @@ export function OwnershipManagementPanel() {
           <DialogHeader>
             <DialogTitle>Transfer Product Ownership</DialogTitle>
             <DialogDescription>
-              Transfer ownership of your product to another user. This action will be recorded on the blockchain.
+              Transfer ownership of your product to another user. They will need to accept the transfer.
             </DialogDescription>
           </DialogHeader>
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-              <FormField
-                control={form.control}
-                name="productId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Product</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select product" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {products?.map(product => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+              <FormItem>
+                <FormLabel>Your Product</FormLabel>
+                {user && (
+                  <ProductSearch 
+                    onProductSelect={handleProductSelect}
+                    ownerId={user.id}
+                    placeholder="Search your products by name, category, farm, or batch ID..."
+                    selectedProduct={selectedProduct}
+                    onClearSelection={clearProductSelection}
+                  />
                 )}
-              />
+                <FormMessage />
+              </FormItem>
 
-              <FormField
-                control={form.control}
-                name="toUserId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>New Owner</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select new owner" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {users.map(user => (
-                          <SelectItem key={user._id} value={user._id}>
-                            {user.name} ({user.username})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+              <FormItem>
+                <FormLabel>Transfer To</FormLabel>
+                {user && (
+                  <UserSearch 
+                    currentUserId={user.id}
+                    onUserSelect={handleUserSelect}
+                    placeholder="Search users by name, username, or email..."
+                    selectedUser={selectedUser}
+                    onClearSelection={clearUserSelection}
+                  />
                 )}
-              />
+                <FormMessage />
+              </FormItem>
 
               <FormField
                 control={form.control}
@@ -219,22 +194,17 @@ export function OwnershipManagementPanel() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Transfer Type</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
+                    <select 
+                      {...field}
+                      className="w-full p-2 border rounded-md"
+                      required
                     >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select transfer type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="transfer">Standard Transfer</SelectItem>
-                        <SelectItem value="sale">Sale</SelectItem>
-                        <SelectItem value="distribution">Distribution</SelectItem>
-                        <SelectItem value="return">Return</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      <option value="transfer">Standard Transfer</option>
+                      <option value="sale">Sale</option>
+                      <option value="distribution">Distribution</option>
+                      <option value="supply_request">Supply Request</option>
+                      <option value="return">Return</option>
+                    </select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -247,7 +217,12 @@ export function OwnershipManagementPanel() {
                   <FormItem>
                     <FormLabel>Notes (Optional)</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Add notes about this transfer" />
+                      <textarea 
+                        {...field} 
+                        placeholder="Add notes about this transfer"
+                        className="w-full p-2 border rounded-md"
+                        rows={3}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -258,15 +233,20 @@ export function OwnershipManagementPanel() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsDialogOpen(false)}
+                  onClick={() => {
+                    setIsDialogOpen(false);
+                    form.reset();
+                    setSelectedUser(null);
+                    setSelectedProduct(null);
+                  }}
                 >
                   Cancel
                 </Button>
                 <Button 
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !form.watch('toUserId') || !form.watch('productId')}
                 >
-                  {isSubmitting ? 'Processing...' : 'Transfer Ownership'}
+                  {isSubmitting ? 'Processing...' : 'Send Transfer Request'}
                 </Button>
               </DialogFooter>
             </form>

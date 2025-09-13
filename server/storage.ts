@@ -218,6 +218,36 @@ export class MongoStorage {
     return result as Product;
   }
 
+  // Get products by owner with sorting
+  async getProductsByOwner(ownerId: string, limit?: number, sortBy: 'newest' | 'oldest' = 'newest'): Promise<Product[]> {
+    const db = await getDb();
+    let cursor = db.collection<Product>("products")
+      .find({ ownerId })
+      .sort({ createdAt: sortBy === 'newest' ? -1 : 1 });
+    
+    if (limit) cursor = cursor.limit(limit);
+    const products = await cursor.toArray();
+    return products;
+  }
+
+  // Search products by owner with filters
+  async searchProductsByOwner(ownerId: string, query: string): Promise<Product[]> {
+    const db = await getDb();
+    return db.collection<Product>("products")
+      .find({
+        ownerId,
+        $or: [
+          { name: { $regex: query, $options: "i" } },
+          { category: { $regex: query, $options: "i" } },
+          { description: { $regex: query, $options: "i" } },
+          { farmName: { $regex: query, $options: "i" } },
+          { batchId: { $regex: query, $options: "i" } }
+        ]
+      })
+      .sort({ createdAt: -1 }) // Newest first
+      .toArray();
+  }
+
   // -------- Transaction Operations --------
   async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
     const db = await getDb();
@@ -286,7 +316,32 @@ export class MongoStorage {
     return transfer;
   }
 
-  // -------- Notification Operations --------
+
+  // -------- OwnershipTransfer Operations --------
+  async getOwnershipTransfer(id: string): Promise<OwnershipTransfer | null> {
+    const db = await getDb();
+    return db.collection<OwnershipTransfer>("ownershiptransfers").findOne({ id });
+  }
+
+  async updateOwnershipTransfer(id: string, updates: Partial<OwnershipTransfer>): Promise<OwnershipTransfer | null> {
+    const db = await getDb();
+    const result = await db.collection<OwnershipTransfer>("ownershiptransfers").findOneAndUpdate(
+      { id },
+      { $set: updates },
+      { returnDocument: "after" }
+    );
+    if (!result) return null;
+    return result as OwnershipTransfer;
+  }
+
+  async getPendingTransfersForUser(userId: string): Promise<OwnershipTransfer[]> {
+    const db = await getDb();
+    return db.collection<OwnershipTransfer>("ownershiptransfers")
+      .find({ toUserId: userId, status: "pending" })
+      .toArray();
+  }
+
+  // Update the createNotification
   async createNotification(insertNotification: InsertNotification): Promise<Notification> {
     const db = await getDb();
     const notification: Notification = {
@@ -294,6 +349,7 @@ export class MongoStorage {
       id: randomUUID(),
       read: insertNotification.read ?? false,
       productId: insertNotification.productId || null,
+      transferId: insertNotification.transferId || undefined,
       createdAt: new Date()
     };
     await db.collection<Notification>("notifications").insertOne(notification);
@@ -340,10 +396,6 @@ export class MongoStorage {
     return this.getProductOwners(productId); // Same as getProductOwners but with clear naming
   }
 
-  async getProductsByOwner(ownerId: string): Promise<Product[]> {
-    const db = await getDb();
-    return db.collection<Product>("products").find({ ownerId }).toArray();
-  }
 
   async getOwnershipHistory(ownerId: string): Promise<{ productId: string, productName: string, ownershipRecords: ProductOwner[] }[]> {
     const db = await getDb();
@@ -483,6 +535,31 @@ export class MongoStorage {
       .find({ productId })
       .sort({ timestamp: 1 })
       .toArray();
+  }
+
+  async searchUsers(query: string, limit = 10): Promise<any[]> {
+    try {
+      const db = await getDb();
+      const users = await db.collection("users").find({
+        $or: [
+          { name: { $regex: query, $options: "i" } },
+          { username: { $regex: query, $options: "i" } },
+          { email: { $regex: query, $options: "i" } }
+        ]
+      }).limit(limit).toArray();
+      
+      return users.map((u: any) => ({
+        id: u.id,
+        name: u.name,
+        username: u.username,
+        email: u.email,
+        role: u.role,
+        profileImage: u.profileImage || null
+      }));
+    } catch (error) {
+      console.error("Error searching users:", error);
+      return []; // Return empty array on error, don't throw
+    }
   }
 
   // Get complete journey data for a product (supply chain map)

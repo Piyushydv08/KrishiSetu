@@ -142,12 +142,15 @@ export const notificationSchema = z.object({
   type: z.string(),
   read: z.boolean().default(false),
   productId: z.string().nullable().optional(),
-  createdAt: z.date()
+  createdAt: z.date(),
+  transferId: z.string().optional()
+  
 });
 export type Notification = z.infer<typeof notificationSchema>;
 
 export const insertNotificationSchema = notificationSchema.omit({ id: true, createdAt: true }).extend({
-  createdAt: z.date().optional()
+  createdAt: z.date().optional(),
+  
 });
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 
