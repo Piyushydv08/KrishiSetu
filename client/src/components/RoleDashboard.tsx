@@ -350,7 +350,7 @@ export function RoleDashboard({
                     Register Product
                   </Button>
                 )}
-              {onScanQR && (
+              {(role === "farmer" || role !== "farmer") && onScanQR && (
                 <Button
                   variant="outline"
                   onClick={onScanQR}
