@@ -80,7 +80,7 @@ export function NavigationHeader() {
             <div className="hidden md:block ml-10">
               <div className="flex items-baseline space-x-8">
                 <Link
-                  href="/"
+                  href="/dashboard"
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     isActiveRoute("/")
                       ? "text-primary border-b-2 border-primary"

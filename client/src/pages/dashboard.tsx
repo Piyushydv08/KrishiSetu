@@ -17,6 +17,8 @@ export default function Dashboard() {
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [showRoleSelection, setShowRoleSelection] = useState(false);
 
+  
+
   // Check if user needs role selection
   useEffect(() => {
     if (user && !user.roleSelected) {
