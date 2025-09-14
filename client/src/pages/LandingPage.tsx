@@ -20,8 +20,8 @@ const LandingPage = () => {
         <ul className="nav-links">
           
           <li onClick={() => navigateTo("/HowItWorks")}>How it works</li>
-          <li onClick={() => navigateTo("/about")}>about</li>
-          <li onClick={() => navigateTo("/contact")}>contact</li>
+          <li onClick={() => navigateTo("/about")}>About</li>
+          <li onClick={() => navigateTo("/contact")}>Contact</li>
           
           
           
