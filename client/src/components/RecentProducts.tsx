@@ -64,7 +64,7 @@ export function RecentProducts() {
           const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           return bTime - aTime;
         })
-        .slice(0, 7)
+        .slice(0, 5)
     : [];
 
   return (

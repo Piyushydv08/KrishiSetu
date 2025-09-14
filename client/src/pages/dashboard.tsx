@@ -117,7 +117,10 @@ export default function Dashboard() {
         {/* Product Registration Form */}
         <ProductRegistrationForm
           isVisible={showRegistrationForm}
-          onClose={() => setShowRegistrationForm(false)}
+          onClose={() => {
+            setShowRegistrationForm(false);
+            window.scrollTo(0, 0);
+          }}
         />
 
         {/* Role Selection Modal */}
