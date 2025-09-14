@@ -90,8 +90,10 @@ export function RoleSelection({
 			// Use the correct endpoint that exists in your routes
 			await apiRequest('PUT', '/api/user/role', {
 				role: roleId
+			}, {
+				'firebase-uid': firebaseUser.uid
 			});
-			
+
 			toast({
 				title: "Role Updated",
 				description: "Your role has been successfully updated.",

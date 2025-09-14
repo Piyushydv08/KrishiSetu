@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { QrCode, Plus } from "lucide-react";
 
 export default function Dashboard() {
-  const { user, refreshUser } = useAuth();
+  const { user, loading, refreshUser } = useAuth();
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [, navigate] = useLocation();
@@ -24,6 +24,19 @@ export default function Dashboard() {
       setShowRoleSelection(true);
     }
   }, [user]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background font-sans">
+        <NavigationHeader />
+        <main className="pt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center text-muted-foreground">
+            Loading dashboard...
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background font-sans">
@@ -104,7 +117,10 @@ export default function Dashboard() {
         {/* Product Registration Form */}
         <ProductRegistrationForm
           isVisible={showRegistrationForm}
-          onClose={() => setShowRegistrationForm(false)}
+          onClose={() => {
+            setShowRegistrationForm(false);
+            window.scrollTo(0, 0);
+          }}
         />
 
         {/* Role Selection Modal */}

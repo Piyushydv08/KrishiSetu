@@ -64,7 +64,7 @@ export function RecentProducts() {
           const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           return bTime - aTime;
         })
-        .slice(0, 7)
+        .slice(0, 5)
     : [];
 
   return (
@@ -74,7 +74,7 @@ export function RecentProducts() {
           <h3 className="text-lg font-semibold text-foreground">
             Recent Products
           </h3>
-          <Link href="/products">
+          <Link href="/registered-products">
             <Button
               variant="link"
               className="text-primary hover:text-primary/80 text-sm font-medium p-0"
