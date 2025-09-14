@@ -198,6 +198,52 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
     }
   });
 
+  //All products search
+ app.get("/api/products/available/search", async (req, res) => {
+    try {
+      const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
+      if (!firebaseUid) {
+        console.log("No firebase-uid header found:", req.headers);
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      console.log("Received search request with firebase-uid:", firebaseUid);
+      const currentUser = await storage.getUserByFirebaseUid(firebaseUid);
+      if (!currentUser) {
+        console.log("User not found for uid:", firebaseUid);
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const q = (req.query.q as string)?.toLowerCase() || "";
+      console.log("Searching for products with query:", q);
+      
+      const db = await getDb();
+      if (!db) {
+        return res.status(500).json({ message: "Database connection failed" });
+      }
+
+      const products = await db.collection("products")
+        .find({
+          ownerId: { $ne: currentUser.id },
+          $or: [
+            { name: { $regex: q, $options: "i" } },
+            { category: { $regex: q, $options: "i" } },
+            { farmName: { $regex: q, $options: "i" } },
+            { batchId: { $regex: q, $options: "i" } }
+          ]
+        })
+        .toArray();
+
+      console.log("Returning products count:", products.length);
+      res.setHeader("Content-Type", "application/json");
+      return res.status(200).json(products || []);
+    } catch (error) {
+      console.error("Error searching available products:", error);
+      return res.status(500).json({ message: "Failed to search products" });
+    }
+  });
+
+
   app.get("/api/products/:id", async (req: Request, res: Response) => {
     const product = await storage.getProduct(req.params.id);
     if (!product) return res.status(404).json({ message: "Product not found" });
@@ -357,8 +403,8 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const user = await storage.getUserByFirebaseUid(firebaseUid);
-      if (!user) {
+      const currentUser = await storage.getUserByFirebaseUid(firebaseUid);
+      if (!currentUser) {
         return res.status(404).json({ message: "User not found" });
       }
       
@@ -367,8 +413,9 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
         return res.status(404).json({ message: "Product not found" });
       }
       
-      if (product.ownerId !== user.id) {
-        return res.status(403).json({ message: "You are not the current owner of this product" });
+      // Prevent transferring to the same owner
+      if (product.ownerId === parse.data.toUserId) {
+        return res.status(400).json({ message: "Cannot transfer to the same owner" });
       }
       
       const newOwner = await storage.getUser(parse.data.toUserId);
@@ -379,14 +426,15 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
       // Create a pending transfer
       const transfer = await storage.createOwnershipTransfer({
         ...parse.data,
+        fromUserId: product.ownerId, // Set the fromUserId to the current product owner
         status: "pending" // Set to pending until accepted
       });
       
-      // Create notification for the new owner (without transferId)
+      // Create notification for the current owner
       await storage.createNotification({
-        userId: newOwner.id,
+        userId: product.ownerId,
         title: "Ownership Transfer Request",
-        message: `${user.name} wants to transfer ownership of ${product.name} to you.`,
+        message: `${currentUser.name} (${currentUser.role}) wants to transfer ownership of ${product.name} to you.`,
         type: "ownership_transfer",
         productId: product.id,
         transferId: transfer.id,
@@ -874,6 +922,9 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
       return res.status(500).json({ message: "Failed to perform search" });
     }
   });
+
+  // Get products available for request (all products not owned by the current user)
+  
 
   const server = createServer(app);
   return server;

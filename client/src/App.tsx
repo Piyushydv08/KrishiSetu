@@ -8,7 +8,7 @@ import LandingPage from "@/pages/LandingPage";
 import Contact from "@/pages/contact";
 import about from "@/pages/about";
 import Dashboard from "@/pages/dashboard";
-import HowItWorks from "./pages/howitworks";
+import HowItWorks from "@/pages/HowItWorks";
 import ProductRegistration from "@/pages/product-registration";
 import QRScannerPage from "@/pages/qr-scanner";
 import ProductDetails from "@/pages/product-details";
@@ -17,6 +17,7 @@ import LoginPage from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import RegisteredProductsPage from "@/pages/registered-products";
 import ScannedProductsPage from "@/pages/scanned-products";
+import RequestProductsPage from "@/pages/request-products";
 
 function App() {
   return (
@@ -48,6 +49,7 @@ function App() {
           <Route path="/login" component={LoginPage} />
           <Route path="/registered-products" component={RegisteredProductsPage} />
           <Route path="/scanned-products" component={ScannedProductsPage} />
+          <Route path="/request-products" component={RequestProductsPage} />
           <Route component={NotFound} />
         </Switch>
       </TooltipProvider>

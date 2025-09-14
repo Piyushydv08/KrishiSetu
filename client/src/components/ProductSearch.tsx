@@ -5,42 +5,30 @@ import { Search, Loader2, X, Package, Calendar, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  description?: string;
-  quantity: string;
-  unit: string;
-  farmName: string;
-  location: string;
-  harvestDate: Date;
-  batchId?: string;
-  createdAt: Date;
-}
+import type { Product } from "@shared/schema";
 
 interface ProductSearchProps {
   onProductSelect: (product: Product) => void;
-  ownerId: string;
   placeholder?: string;
   selectedProduct?: Product | null;
   onClearSelection?: () => void;
+  searchEndpoint?: string; 
+  ownerId?: string;
 }
 
-export function ProductSearch({ 
-  onProductSelect, 
-  ownerId,
+export function ProductSearch({
+  onProductSelect,
   placeholder = "Search your products by name, category, farm, or batch ID...",
   selectedProduct,
-  onClearSelection
+  onClearSelection,
+  searchEndpoint,
+  ownerId,
 }: ProductSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Product[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [recentSearches, setRecentSearches] = useState<Product[]>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -55,22 +43,18 @@ export function ProductSearch({
         setHighlightedIndex(-1);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Handle keyboard navigation
+  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
-
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
-          setHighlightedIndex(prev => 
-            prev < results.length - 1 ? prev + 1 : prev
-          );
+          setHighlightedIndex(prev => prev < results.length - 1 ? prev + 1 : prev);
           break;
         case 'ArrowUp':
           e.preventDefault();
@@ -89,49 +73,41 @@ export function ProductSearch({
           break;
       }
     };
-
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, results, highlightedIndex]);
 
-  useEffect(() => {
-    const stored = localStorage.getItem("recentProductSearches");
-    if (stored) setRecentSearches(JSON.parse(stored));
-  }, []);
-
+  // Search logic
   const searchProducts = useCallback(async (searchQuery: string) => {
-    if (!searchQuery.trim() || !ownerId) {
+    if (!searchQuery.trim()) {
       setResults([]);
       setIsOpen(false);
       return;
     }
-
     setIsSearching(true);
     setSearchError(null);
-    
     try {
-      const response = await fetch(
-        `/api/user/products/owned?q=${encodeURIComponent(searchQuery)}&ownerId=${ownerId}`,
-        {
-          headers: {
-            'firebase-uid': user?.firebaseUid || ''
-          }
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error('Failed to search products');
+      let url: string;
+      if (searchEndpoint) {
+        url = `${searchEndpoint}?q=${encodeURIComponent(searchQuery)}`;
+      } else if (ownerId) {
+        url = `/api/user/products/owned?q=${encodeURIComponent(searchQuery)}&ownerId=${ownerId}`;
+      } else {
+        setResults([]);
+        setIsOpen(false);
+        setIsSearching(false);
+        return;
       }
-
+      const response = await fetch(url, {
+        headers: {
+          'firebase-uid': user?.firebaseUid || ''
+        }
+      });
+      if (!response.ok) throw new Error('Failed to search products');
       const data = await response.json();
       setResults(data);
       setHighlightedIndex(-1);
-      
-      if (data.length > 0) {
-        setIsOpen(true);
-      } else {
-        setIsOpen(true); // Keep open to show "no results" message
-      }
+      setIsOpen(true);
     } catch (error) {
       console.error('Product search failed:', error);
       setSearchError('Failed to search products');
@@ -143,7 +119,7 @@ export function ProductSearch({
     } finally {
       setIsSearching(false);
     }
-  }, [ownerId, toast, user]);
+  }, [ownerId, toast, user, searchEndpoint]);
 
   // Debounced search
   useEffect(() => {
@@ -155,7 +131,6 @@ export function ProductSearch({
         setIsOpen(false);
       }
     }, 300);
-
     return () => clearTimeout(timeoutId);
   }, [query, searchProducts]);
 
@@ -172,12 +147,8 @@ export function ProductSearch({
     setResults([]);
     setIsOpen(false);
     setHighlightedIndex(-1);
-    if (onClearSelection) {
-      onClearSelection();
-    }
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (onClearSelection) onClearSelection();
+    if (inputRef.current) inputRef.current.focus();
   };
 
   const formatDate = (date: Date) => {
@@ -232,7 +203,6 @@ export function ProductSearch({
           </div>
         )}
       </div>
-      
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-lg max-h-80 overflow-auto">
           <div role="listbox">
@@ -276,15 +246,6 @@ export function ProductSearch({
                         <span>Harvested: {formatDate(product.harvestDate)}</span>
                       </div>
                     </div>
-
-                    {/* Tooltip with product details */}
-                    <div className="absolute left-full top-0 ml-2 w-64 p-2 bg-white border rounded shadow-lg opacity-0 group-hover:opacity-100 transition">
-                      <p><b>Name:</b> {product.name}</p>
-                      <p><b>Category:</b> {product.category}</p>
-                      <p><b>Farm:</b> {product.farmName}</p>
-                      <p><b>Batch:</b> {product.batchId}</p>
-                      <p><b>Harvest:</b> {formatDate(product.harvestDate)}</p>
-                    </div>
                   </div>
                 ))}
               </div>
@@ -306,13 +267,11 @@ export function ProductSearch({
           </div>
         </div>
       )}
-
       {searchError && (
         <div className="p-4 text-center text-red-500">
           {searchError}
         </div>
       )}
-
       {selectedProduct && !query && (
         <div className="mt-2 border border-border rounded-md p-3 bg-muted/30">
           <div className="flex items-center justify-between">

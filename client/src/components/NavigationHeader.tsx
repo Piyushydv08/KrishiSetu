@@ -62,12 +62,45 @@ export function NavigationHeader() {
     );
   }
 
+  // Nav links for desktop and mobile
+  const navLinks = [
+    {
+      href: "/dashboard",
+      label: "Dashboard",
+      show: true,
+      testid: "link-dashboard",
+    },
+    {
+      href: "/qr-scanner",
+      label: "QR Scanner",
+      show: true,
+      testid: "link-scanner",
+    },
+    {
+      href: "/registered-products",
+      label: "Registered Products",
+      show: ["farmer", "distributor", "retailer"].includes(user.role),
+      testid: "link-registered-products",
+    },
+    {
+      href: "/scanned-products",
+      label: "Scanned Products",
+      show: user.role === "consumer",
+      testid: "link-scanned-products",
+    },
+    {
+      href: "/request-products",
+      label: "Request Product",
+      show: user.role === "retailer" || user.role === "distributor",
+      testid: "link-request-products",
+    },
+  ];
+
   return (
     <nav className="bg-card border-b border-border sticky top-0 z-50 shadow-sm w-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Flex container with wrapping */}
         <div className="flex flex-wrap justify-between items-center h-16 gap-2">
-          {/* Left side: Logo + nav links */}
+          {/* Left: Logo + nav links */}
           <div className="flex flex-wrap items-center gap-4 flex-grow min-w-0">
             <div className="flex-shrink-0">
               <h1
@@ -80,61 +113,28 @@ export function NavigationHeader() {
                 FarmTrace
               </h1>
             </div>
-
-            {/* Desktop nav links - hide on small */}
-            <div className="hidden md:flex space-x-4 min-w-0 flex-shrink">
-              <Link
-                href="/dashboard"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActiveRoute("/dashboard")
-                    ? "text-primary border-b-2 border-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                } truncate`}
-                data-testid="link-dashboard"
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/qr-scanner"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActiveRoute("/qr-scanner")
-                    ? "text-primary border-b-2 border-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                } truncate`}
-                data-testid="link-scanner"
-              >
-                QR Scanner
-              </Link>
-              {["farmer", "distributor", "retailer"].includes(user.role) && (
-                <Link
-                  href="/registered-products"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActiveRoute("/registered-products")
-                      ? "text-primary border-b-2 border-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  } truncate`}
-                  data-testid="link-registered-products"
-                >
-                  Registered Products
-                </Link>
-              )}
-              {user.role === "consumer" && (
-                <Link
-                  href="/scanned-products"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActiveRoute("/scanned-products")
-                      ? "text-primary border-b-2 border-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  } truncate`}
-                  data-testid="link-scanned-products"
-                >
-                  Scanned Products
-                </Link>
-              )}
+            {/* Desktop nav links */}
+            <div className="hidden md:flex space-x-2 min-w-0 flex-shrink">
+              {navLinks
+                .filter((link) => link.show)
+                .map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActiveRoute(link.href)
+                        ? "text-primary border-b-2 border-primary bg-muted"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                    } truncate`}
+                    data-testid={link.testid}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
             </div>
           </div>
 
-          {/* Right side: Notifications, user menu, mobile toggle */}
+          {/* Right: Notifications, user menu, mobile toggle */}
           <div className="flex items-center gap-3 flex-shrink-0">
             <Button
               variant="ghost"
@@ -152,7 +152,6 @@ export function NavigationHeader() {
                 </span>
               )}
             </Button>
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -209,8 +208,7 @@ export function NavigationHeader() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
-            {/* Mobile menu toggle only visible on small screens */}
+            {/* Mobile menu toggle */}
             <div className="md:hidden">
               <Button
                 variant="ghost"
@@ -224,54 +222,25 @@ export function NavigationHeader() {
             </div>
           </div>
         </div>
-
         {/* Mobile menu */}
         {mobileMenuOpen && (
           <div className="md:hidden mt-2 space-y-1 px-2 pb-3 border-t border-border">
-            <Link
-              href="/dashboard"
-              className={`block px-3 py-2 rounded-md text-base font-medium ${
-                isActiveRoute("/dashboard")
-                  ? "text-primary border-l-4 border-primary bg-muted"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/qr-scanner"
-              className={`block px-3 py-2 rounded-md text-base font-medium ${
-                isActiveRoute("/qr-scanner")
-                  ? "text-primary border-l-4 border-primary bg-muted"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              QR Scanner
-            </Link>
-            {["farmer", "distributor", "retailer"].includes(user.role) && (
-              <Link
-                href="/registered-products"
-                className={`block px-3 py-2 rounded-md text-base font-medium ${
-                  isActiveRoute("/registered-products")
-                    ? "text-primary border-l-4 border-primary bg-muted"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Registered Products
-              </Link>
-            )}
-            {user.role === "consumer" && (
-              <Link
-                href="/scanned-products"
-                className={`block px-3 py-2 rounded-md text-base font-medium ${
-                  isActiveRoute("/scanned-products")
-                    ? "text-primary border-l-4 border-primary bg-muted"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Scanned Products
-              </Link>
-            )}
+            {navLinks
+              .filter((link) => link.show)
+              .map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`block px-3 py-2 rounded-md text-base font-medium ${
+                    isActiveRoute(link.href)
+                      ? "text-primary border-l-4 border-primary bg-muted"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  }`}
+                  data-testid={link.testid}
+                >
+                  {link.label}
+                </Link>
+              ))}
           </div>
         )}
       </div>

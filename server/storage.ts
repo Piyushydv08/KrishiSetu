@@ -124,6 +124,13 @@ export class MongoStorage {
     return products;
   }
 
+  async getAvailableProducts(excludeUserId: string): Promise<Product[]> {
+    const db = await getDb();
+    return db.collection<Product>("products")
+      .find({ ownerId: { $ne: excludeUserId } })
+      .toArray();
+  }
+
   async countProducts(): Promise<number> {
     const db = await getDb();
     return await db.collection('products').countDocuments();
