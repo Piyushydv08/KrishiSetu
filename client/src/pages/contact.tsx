@@ -1,7 +1,7 @@
 // pages/Contact.tsx
 import React from "react";
 import { Link } from "wouter";
-import "./Contact.css";
+import "./contact.css";
 
 const Contact: React.FC = () => {
   return (
