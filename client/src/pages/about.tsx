@@ -1,7 +1,7 @@
 // pages/About.tsx
 import React from "react";
 import { Link } from "wouter";
-import "./About.css";
+import "./about.css";
 
 const About: React.FC = () => {
   return (
