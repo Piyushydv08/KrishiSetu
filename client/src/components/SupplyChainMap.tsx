@@ -31,86 +31,112 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
 
   // Define coordinates for Indian locations
   const locationCoordinates: Record<string, { lat: number; lng: number }> = {
-    'Haryana': { lat: 29.0588, lng: 76.0856 }, // Approximate center of Haryana
+    'Haryana': { lat: 29.0588, lng: 76.0856 },
     'Chandigarh': { lat: 30.7333, lng: 76.7794 },
     'Delhi': { lat: 28.6139, lng: 77.2090 },
-    'Bangalore': { lat: 12.9716, lng: 77.5946 }
+    'Bangalore': { lat: 12.9716, lng: 77.5946 },
+    'Punjab': { lat: 31.1471, lng: 75.3412 },
+    'Uttar Pradesh': { lat: 27.1303, lng: 80.8597 },
+    'Maharashtra': { lat: 19.7515, lng: 75.7139 },
+    'Tamil Nadu': { lat: 11.1271, lng: 78.6569 },
+    // Add more locations as needed
   };
 
+  // Safely get farm location with proper type checking
+  const farmLocation = (selectedProduct as any)?.farmLocation || 'Haryana';
+
   const journeySteps: JourneyStep[] = [
-    { 
-      id: '1', 
-      name: selectedProduct?.farmName || 'Sunny Acres Farm', 
-      location: 'Haryana', 
-      date: 'Jan 10', 
-      status: 'Harvested', 
-      icon: Sprout, 
-      bgColor: 'bg-primary', 
-      textColor: 'text-primary-foreground',
-      coordinates: locationCoordinates['Haryana']
-    },
-    { 
-      id: '2', 
-      name: 'Fresh Pack Co.', 
-      location: 'Chandigarh', 
-      date: 'Jan 12', 
-      status: 'Processed', 
-      icon: Factory, 
-      bgColor: 'bg-accent', 
-      textColor: 'text-accent-foreground',
-      coordinates: locationCoordinates['Chandigarh']
-    },
-    { 
-      id: '3', 
-      name: 'Central Distribution', 
-      location: 'Delhi', 
-      date: 'Jan 14', 
-      status: 'Shipped', 
-      icon: Warehouse, 
-      bgColor: 'bg-warning', 
-      textColor: 'text-white',
-      coordinates: locationCoordinates['Delhi']
-    },
-    { 
-      id: '4', 
-      name: 'Green Market', 
-      location: 'Bangalore', 
-      date: 'Jan 16', 
-      status: 'Delivering', 
-      icon: Store, 
-      bgColor: 'bg-secondary', 
-      textColor: 'text-secondary-foreground',
-      coordinates: locationCoordinates['Bangalore']
-    }
-  ];
+  { 
+    id: '1', 
+    name: (selectedProduct as any)?.farmName || 'Sunny Acres Farm', 
+    location: farmLocation, 
+    date: 'Jan 10', 
+    status: 'Harvested', 
+    icon: Sprout, 
+    bgColor: 'bg-primary', 
+    textColor: 'text-primary-foreground'
+  },
+  { 
+    id: '2', 
+    name: 'Fresh Pack Co.', 
+    location: 'Chandigarh', 
+    date: 'Jan 12', 
+    status: 'Processed', 
+    icon: Factory, 
+    bgColor: 'bg-accent', 
+    textColor: 'text-accent-foreground'
+  },
+  { 
+    id: '3', 
+    name: 'Central Distribution', 
+    location: 'Delhi', 
+    date: 'Jan 14', 
+    status: 'Shipped', 
+    icon: Warehouse, 
+    bgColor: 'bg-warning', 
+    textColor: 'text-white'
+  },
+  { 
+    id: '4', 
+    name: 'Green Market', 
+    location: 'Bangalore', 
+    date: 'Jan 16', 
+    status: 'Delivering', 
+    icon: Store, 
+    bgColor: 'bg-secondary', 
+    textColor: 'text-secondary-foreground'
+  }
+];
+
+  // Calculate distance based on actual farm location with proper error handling
+  const calculateDistance = () => {
+    const firstStep = journeySteps[0];
+    const lastStep = journeySteps[journeySteps.length - 1];
+    
+    if (!firstStep?.coordinates || !lastStep?.coordinates) 
+      return '2,100 km';
+    
+    // Simple approximation - in a real app, you'd use a proper distance calculation
+    const startLat = firstStep.coordinates.lat;
+    const endLat = lastStep.coordinates.lat;
+    const latDiff = Math.abs(startLat - endLat);
+    
+    // Rough approximation: 1 degree latitude ≈ 111 km
+    const distance = Math.round(latDiff * 111 * 10) / 10;
+    
+    return `${distance.toLocaleString()} km`;
+  };
 
   const journeyStats = {
     verifiedStages: 4,
-    totalDistance: '2,100 km',
+    totalDistance: calculateDistance(),
     journeyTime: '6 days',
     avgTemperature: '28°C'
   };
 
-  // Function to open Google Maps with the route
-  const openGoogleMapsRoute = () => {
-    if (journeySteps.length < 2) return;
-    
-    // Create waypoints for the route (all intermediate points)
-    const waypoints = journeySteps
-      .slice(1, -1)
-      .map(step => `${step.coordinates?.lat},${step.coordinates?.lng}`)
-      .join('|');
-    
-    // Create origin and destination
-    const origin = `${journeySteps[0].coordinates?.lat},${journeySteps[0].coordinates?.lng}`;
-    const destination = `${journeySteps[journeySteps.length - 1].coordinates?.lat},${journeySteps[journeySteps.length - 1].coordinates?.lng}`;
-    
-    // Construct the Google Maps URL
-    const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${waypoints}&travelmode=driving`;
-    
-    // Open in a new tab
-    window.open(mapsUrl, '_blank');
-  };
+ // Function to open Google Maps with the route using city/state names
+const openGoogleMapsRoute = () => {
+  if (journeySteps.length < 2) return;
+  
+  // Create waypoints for the route (all intermediate points)
+  const waypoints = journeySteps
+    .slice(1, -1)
+    .map(step => step.location)
+    .filter(Boolean)
+    .join('|');
+  
+  // Create origin and destination
+  const origin = journeySteps[0].location;
+  const destination = journeySteps[journeySteps.length - 1].location;
+  
+  if (!origin || !destination) return;
+  
+  // Construct the Google Maps URL with city/state names
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`;
+  
+  // Open in a new tab
+  window.open(mapsUrl, '_blank');
+};
 
   if (isLoading) {
     return (

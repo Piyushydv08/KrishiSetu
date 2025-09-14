@@ -30,9 +30,15 @@ import { LoadingStates } from "./LoadingStates";
 import { useToast } from "@/hooks/use-toast";
 import { PlusCircle, X, Plus } from "lucide-react";
 
+// Create a stricter schema with required fields
 const formSchema = insertProductSchema.extend({
   harvestDate: z.string().min(1, "Harvest date is required"),
   quantity: z.string().min(1, "Quantity is required"),
+  name: z.string().min(1, "Product name is required"),
+  category: z.string().min(1, "Category is required"),
+  farmName: z.string().min(1, "Farm name is required"),
+  location: z.string().min(1, "Location is required"),
+  unit: z.string().min(1, "Unit is required"),
   certifications: z.array(z.string()).default([]),
 });
 
@@ -173,12 +179,13 @@ export function ProductRegistrationForm({
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Product Name</FormLabel>
+                          <FormLabel>Product Name *</FormLabel>
                           <FormControl>
                             <Input
                               placeholder="e.g., Organic Cherry Tomatoes"
                               {...field}
                               data-testid="input-product-name"
+                              required
                             />
                           </FormControl>
                           <FormMessage />
@@ -191,10 +198,11 @@ export function ProductRegistrationForm({
                       name="category"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Category</FormLabel>
+                          <FormLabel>Category *</FormLabel>
                           <Select
                             onValueChange={field.onChange}
                             value={field.value}
+                            required
                           >
                             <FormControl>
                               <SelectTrigger data-testid="select-category">
@@ -241,13 +249,14 @@ export function ProductRegistrationForm({
                         name="quantity"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Quantity</FormLabel>
+                            <FormLabel>Quantity *</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
                                 placeholder="Amount"
                                 {...field}
                                 data-testid="input-quantity"
+                                required
                               />
                             </FormControl>
                             <FormMessage />
@@ -259,10 +268,11 @@ export function ProductRegistrationForm({
                         name="unit"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Unit</FormLabel>
+                            <FormLabel>Unit *</FormLabel>
                             <Select
                               onValueChange={field.onChange}
                               value={field.value}
+                              required
                             >
                               <FormControl>
                                 <SelectTrigger data-testid="select-unit">
@@ -295,12 +305,13 @@ export function ProductRegistrationForm({
                       name="farmName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Farm/Producer Name</FormLabel>
+                          <FormLabel>Farm/Producer Name *</FormLabel>
                           <FormControl>
                             <Input
                               placeholder="e.g., Sunny Acres Organic Farm"
                               {...field}
                               data-testid="input-farm-name"
+                              required
                             />
                           </FormControl>
                           <FormMessage />
@@ -313,12 +324,13 @@ export function ProductRegistrationForm({
                       name="location"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Location</FormLabel>
+                          <FormLabel>Location *</FormLabel>
                           <FormControl>
                             <Input
                               placeholder="City, State"
                               {...field}
                               data-testid="input-location"
+                              required
                             />
                           </FormControl>
                           <FormMessage />
@@ -331,12 +343,13 @@ export function ProductRegistrationForm({
                       name="harvestDate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Harvest/Production Date</FormLabel>
+                          <FormLabel>Harvest/Production Date *</FormLabel>
                           <FormControl>
                             <Input
                               type="date"
                               {...field}
                               data-testid="input-harvest-date"
+                              required
                             />
                           </FormControl>
                           <FormMessage />
@@ -353,7 +366,7 @@ export function ProductRegistrationForm({
                   render={() => (
                     <FormItem>
                       <FormLabel className="text-base">
-                        Certifications
+                        Certifications (Optional)
                       </FormLabel>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {certificationOptions.map((certification) => (
