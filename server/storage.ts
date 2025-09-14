@@ -165,21 +165,37 @@ export class MongoStorage {
     return scans;
   }
   
+  // Get all notifications for a user, newest first
   async getUserNotifications(userId: string): Promise<Notification[]> {
     const db = await getDb();
-    const notifications = await db.collection<Notification>("notifications")
+    return db.collection<Notification>("notifications")
       .find({ userId })
       .sort({ createdAt: -1 })
       .toArray();
-    return notifications;
   }
-  
+
+  // Mark a notification as read
   async markNotificationRead(notificationId: string): Promise<void> {
     const db = await getDb();
     await db.collection("notifications").updateOne(
       { id: notificationId },
       { $set: { read: true } }
     );
+  }
+
+  // Create a notification
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const db = await getDb();
+    const notification: Notification = {
+      ...insertNotification,
+      id: randomUUID(),
+      read: insertNotification.read ?? false,
+      productId: insertNotification.productId || null,
+      transferId: insertNotification.transferId || undefined,
+      createdAt: new Date()
+    };
+    await db.collection<Notification>("notifications").insertOne(notification);
+    return notification;
   }
   
   async searchProducts(query: string): Promise<Product[]> {
@@ -364,21 +380,6 @@ export class MongoStorage {
     return db.collection<OwnershipTransfer>("ownershiptransfers")
       .find({ toUserId: userId, status: "pending" })
       .toArray();
-  }
-
-  // Update the createNotification
-  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
-    const db = await getDb();
-    const notification: Notification = {
-      ...insertNotification,
-      id: randomUUID(),
-      read: insertNotification.read ?? false,
-      productId: insertNotification.productId || null,
-      transferId: insertNotification.transferId || undefined,
-      createdAt: new Date()
-    };
-    await db.collection<Notification>("notifications").insertOne(notification);
-    return notification;
   }
 
   // -------- ProductOwner Operations (Blockchain-style) --------
@@ -671,6 +672,30 @@ export class MongoStorage {
   // Helper function to generate random coordinates for demo
   private getRandomCoordinate(base: number, range: number): number {
     return base + (Math.random() * 2 - 1) * range;
+  }
+
+  // -------- Product Event Logging --------
+  async logProductEvent(productId: string, eventType: string, message: string, userId: string, extra?: any) {
+    const db = await getDb();
+    const event = {
+      id: randomUUID(),
+      productId,
+      eventType,
+      message,
+      userId,
+      extra: extra || null,
+      createdAt: new Date()
+    };
+    await db.collection("product_events").insertOne(event);
+    return event;
+  }
+
+  async getProductEvents(productId: string): Promise<any[]> {
+    const db = await getDb();
+    return db.collection("product_events")
+      .find({ productId })
+      .sort({ createdAt: 1 })
+      .toArray();
   }
 }
 

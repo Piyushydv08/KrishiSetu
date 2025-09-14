@@ -102,7 +102,12 @@ export function UserSearch({
       setSearchError(null);
       
       try {
-        const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
+        const firebaseUid = localStorage.getItem('firebase-uid');
+        const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`, {
+          headers: {
+            'firebase-uid': firebaseUid || ''
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           // Filter out current user from results

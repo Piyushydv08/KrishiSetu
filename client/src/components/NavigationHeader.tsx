@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,10 +15,42 @@ import { useAuth } from "@/hooks/useAuth";
 export function NavigationHeader() {
   const [location, setLocation] = useLocation();
   const { user, firebaseUser, login, logout, loading } = useAuth();
-  const [notificationCount] = useState(3);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notificationCount, setNotificationCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
 
   const isActiveRoute = (path: string) => location === path;
+
+  useEffect(() => {
+    async function fetchNotifications() {
+      if (!firebaseUser) return;
+      try {
+        const idToken = await firebaseUser.getIdToken();
+        const res = await fetch("/api/notifications", {
+          headers: {
+            "firebase-uid": firebaseUser.uid,
+            Authorization: `Bearer ${idToken}`,
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setNotifications(data);
+          setNotificationCount(data.filter((n: any) => !n.read).length);
+        } else {
+          setNotifications([]);
+          setNotificationCount(0);
+        }
+      } catch (err) {
+        setNotifications([]);
+        setNotificationCount(0);
+      }
+    }
+    fetchNotifications();
+    //poll every 10 seconds:
+    const interval = setInterval(fetchNotifications, 10000);
+    return () => clearInterval(interval);
+  }, [firebaseUser]);
 
   if (loading) {
     return (
@@ -140,6 +172,31 @@ export function NavigationHeader() {
     },
   ];
 
+  const handleNotificationClick = async (notif: any) => {
+    if (!notif.read) {
+      await fetch(`/api/notifications/${notif.id}/read`, {
+        method: "PUT",
+        headers: {
+          "firebase-uid": user?.firebaseUid || "",
+          "Content-Type": "application/json",
+        },
+      });
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n))
+      );
+      setNotificationCount((prev) => Math.max(0, prev - 1)); // Only decrement if unread
+    }
+    setNotifDropdownOpen(false);
+    if (notif.productId) {
+      setLocation(`/product/${notif.productId}`);
+    }
+  };
+
+  const sortedNotifications = [
+    ...notifications.filter((n) => !n.read),
+    ...notifications.filter((n) => n.read),
+  ];
+
   return (
     <nav className="bg-card border-b border-border sticky top-0 z-50 shadow-sm w-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -180,22 +237,52 @@ export function NavigationHeader() {
 
           {/* Right: Notifications, user menu, mobile toggle */}
           <div className="flex items-center gap-3 flex-shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative"
-              data-testid="button-notifications"
-            >
-              <Bell className="h-5 w-5" />
-              {notificationCount > 0 && (
-                <span
-                  className="absolute -top-1 -right-1 h-5 w-5 bg-accent text-accent-foreground rounded-full text-xs flex items-center justify-center"
-                  data-testid="text-notification-count"
+            <DropdownMenu open={notifDropdownOpen} onOpenChange={setNotifDropdownOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative"
+                  data-testid="button-notifications"
                 >
-                  {notificationCount}
-                </span>
-              )}
-            </Button>
+                  <Bell className="h-5 w-5" />
+                  {notificationCount > 0 && (
+                    <span
+                      className="absolute -top-1 -right-1 h-5 w-5 bg-accent text-accent-foreground rounded-full text-xs flex items-center justify-center"
+                      data-testid="text-notification-count"
+                    >
+                      {notificationCount}
+                    </span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-auto">
+                <div className="p-2 font-semibold">Notifications</div>
+                <DropdownMenuSeparator />
+                {notifications.length === 0 ? (
+                  <div className="p-4 text-center text-muted-foreground text-sm">
+                    No new notifications.
+                  </div>
+                ) : (
+                  sortedNotifications.map((notif) => (
+                    <DropdownMenuItem
+                      key={notif.id}
+                      onClick={() => handleNotificationClick(notif)}
+                      className={notif.read ? "opacity-50" : ""}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <div>
+                        <div className="font-medium">{notif.title}</div>
+                        <div className="text-xs">{notif.message}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(notif.createdAt).toLocaleString()}
+                        </div>
+                      </div>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

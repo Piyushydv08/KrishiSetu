@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'wouter';
 import { NavigationHeader } from '@/components/NavigationHeader';
 import { QRCodeGenerator } from '@/components/QRCodeGenerator';
@@ -13,10 +13,41 @@ import { ArrowLeft, MapPin, Calendar, Package, User, ShieldCheck, Clock, Truck, 
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'wouter';
 
+interface ProductEvent {
+  id: string;
+  eventType: string;
+  message: string;
+  userId: string;
+  createdAt: string;
+  extra?: any;
+}
+
 export default function ProductDetails() {
   const params = useParams();
   const productId = params.id as string;
   const { data: product, isLoading, error } = useProduct(productId);
+
+  // --- Add this state and effect for events ---
+  const [events, setEvents] = useState<ProductEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchEvents() {
+      setEventsLoading(true);
+      try {
+        const res = await fetch(`/api/products/${productId}/events`);
+        if (res.ok) {
+          const data = await res.json();
+          setEvents(data);
+        }
+      } catch (e) {
+        setEvents([]);
+      }
+      setEventsLoading(false);
+    }
+    fetchEvents();
+  }, [productId]);
+  // --------------------------------------------
 
   if (isLoading) {
     return (
@@ -69,7 +100,6 @@ export default function ProductDetails() {
   return (
     <div className="min-h-screen bg-background font-sans">
       <NavigationHeader />
-      
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <Link href="/">
@@ -87,11 +117,8 @@ export default function ProductDetails() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            
-            {/* Product Overview */}
+            {/* 1. Product Overview */}
             <Card className="shadow-sm border border-border">
               <CardHeader>
                 <h3 className="text-xl font-semibold text-foreground">Product Overview</h3>
@@ -183,35 +210,44 @@ export default function ProductDetails() {
               </CardContent>
             </Card>
             
-            {/* Blockchain Verification */}
+            {/* 2. Product Event Timeline */}
             <Card className="shadow-sm border border-border">
               <CardHeader>
-                <h3 className="text-xl font-semibold text-foreground">Blockchain Verification</h3>
+                <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
+                  <History className="h-5 w-5 text-primary" />
+                  Product Event Timeline
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="relative p-4 bg-verified/10 border border-verified/20 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <ShieldCheck className="w-6 h-6 text-verified mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-foreground">Verified on Blockchain</div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        Transaction Hash:
-                        <span className="font-mono ml-1 break-all" data-testid="text-blockchain-hash">
-                          {product.blockchainHash}
+                {eventsLoading ? (
+                  <div className="text-muted-foreground">Loading events...</div>
+                ) : events.length === 0 ? (
+                  <div className="text-muted-foreground">No events yet.</div>
+                ) : (
+                  <ol className="space-y-4">
+                    {events.map(ev => (
+                      <li key={ev.id} className="flex items-start gap-3">
+                        <span>
+                          {ev.eventType === "ownership_request" && <User className="w-4 h-4 text-accent" />}
+                          {ev.eventType === "ownership_transfer" && <Shield className="w-4 h-4 text-verified" />}
+                          {ev.eventType === "product_out_for_delivery" && <Truck className="w-4 h-4 text-primary" />}
+                          {ev.eventType === "product_received" && <Package className="w-4 h-4 text-success" />}
+                          {/* Add more icons as needed */}
                         </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="absolute top-4 right-4">
-                    <Badge className="bg-verified text-white border-0">
-                      Verified
-                    </Badge>
-                  </div>
-                </div>
+                        <div>
+                          <div className="font-medium">{ev.message}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(ev.createdAt).toLocaleString()}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
               </CardContent>
             </Card>
-            
-            {/* Supply Chain Journey Map */}
+
+            {/* 3. Supply Chain Journey */}
             <Card className="shadow-sm border border-border">
               <CardHeader>
                 <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
@@ -223,8 +259,8 @@ export default function ProductDetails() {
                 <SupplyChainMap productId={productId} />
               </CardContent>
             </Card>
-            
-            {/* Ownership History */}
+
+            {/* 4. Ownership Blockchain */}
             <Card className="shadow-sm border border-border">
               <CardHeader>
                 <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
@@ -236,8 +272,14 @@ export default function ProductDetails() {
                 <OwnershipHistoryList productId={productId} />
               </CardContent>
             </Card>
+          </div>
+          
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* 5. QR Code */}
+            <QRCodeGenerator product={product} />
             
-            {/* Certifications */}
+            {/* 6. Certifications */}
             {product.certifications && product.certifications.length > 0 && (
               <Card className="shadow-sm border border-border">
                 <CardHeader>
@@ -259,14 +301,8 @@ export default function ProductDetails() {
                 </CardContent>
               </Card>
             )}
-          </div>
-          
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* QR Code */}
-            <QRCodeGenerator product={product} />
-            
-            {/* Quick Stats */}
+
+            {/* 7. Quick Stats */}
             <Card className="shadow-sm border border-border">
               <CardHeader>
                 <h3 className="text-lg font-semibold text-foreground">Quick Stats</h3>
