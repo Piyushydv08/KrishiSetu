@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/form";
 import { LoadingStates } from "./LoadingStates";
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, X, Plus } from "lucide-react";
+import { PlusCircle, X, Plus, MapPin, Loader2 } from "lucide-react";
 
 // Create a stricter schema with required fields
 const formSchema = insertProductSchema.extend({
@@ -60,6 +60,14 @@ interface ProductRegistrationFormProps {
   onClose: () => void;
 }
 
+interface LocationSuggestion {
+  display_name: string;
+  lat: string;
+  lon: string;
+  place_id?: number;
+  osm_id?: number;
+}
+
 export function ProductRegistrationForm({
   isVisible,
   onClose,
@@ -69,12 +77,51 @@ export function ProductRegistrationForm({
   const { toast } = useToast();
 
   const formRef = useRef<HTMLDivElement>(null);
+  const [locationQuery, setLocationQuery] = useState("");
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
     if (isVisible && formRef.current) {
       formRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [isVisible]);
+
+  // Debounced search for locations
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (locationQuery.length > 2) {
+        fetchLocationSuggestions(locationQuery);
+      } else {
+        setLocationSuggestions([]);
+      }
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [locationQuery]);
+
+  const fetchLocationSuggestions = async (query: string) => {
+    setIsLoadingSuggestions(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=5`
+      );
+      const data = await response.json();
+      setLocationSuggestions(data);
+    } catch (error) {
+      console.error("Error fetching location suggestions:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch location suggestions",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -104,31 +151,73 @@ export function ProductRegistrationForm({
     }
 
     try {
+      // Prepare the data in the format expected by the API
       const productData = {
-        ...data,
-        quantity: data.quantity,
+        name: data.name,
+        category: data.category,
+        description: data.description || "",
+        quantity: Number(data.quantity),
+        unit: data.unit,
+        farmName: data.farmName,
+        location: data.location,
         harvestDate: new Date(data.harvestDate),
+        certifications: data.certifications,
+        status: "registered" as const,
         ownerId: user.id,
       };
 
-      createProduct(productData, {
-        onSuccess: (product) => {
+      // Call the mutation - check if the hook expects a different parameter format
+      if (typeof createProduct === "function") {
+        createProduct(productData, {
+          onSuccess: (product: any) => {
+            toast({
+              title: "Success!",
+              description: `Product successfully registered with Batch ID: ${product.batchId}`,
+            });
+            form.reset();
+            setLocationQuery("");
+            onClose();
+          },
+          onError: (error: any) => {
+            toast({
+              title: "Registration Failed",
+              description:
+                error.message || "Failed to register product. Please try again.",
+              variant: "destructive",
+            });
+          },
+        });
+      } else {
+        // Fallback: try calling the mutation directly
+        try {
+          const response = await fetch("/api/products", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(productData),
+          });
+          
+          if (!response.ok) {
+            throw new Error("Failed to create product");
+          }
+          
+          const product = await response.json();
           toast({
             title: "Success!",
             description: `Product successfully registered with Batch ID: ${product.batchId}`,
           });
           form.reset();
+          setLocationQuery("");
           onClose();
-        },
-        onError: (error) => {
+        } catch (error) {
           toast({
             title: "Registration Failed",
-            description:
-              error.message || "Failed to register product. Please try again.",
+            description: "Failed to register product. Please try again.",
             variant: "destructive",
           });
-        },
-      });
+        }
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -136,6 +225,12 @@ export function ProductRegistrationForm({
         variant: "destructive",
       });
     }
+  };
+
+  const handleLocationSelect = (suggestion: LocationSuggestion) => {
+    form.setValue("location", suggestion.display_name);
+    setLocationQuery(suggestion.display_name);
+    setShowSuggestions(false);
   };
 
   if (!isVisible) return null;
@@ -319,24 +414,46 @@ export function ProductRegistrationForm({
                       )}
                     />
 
-                    <FormField
-                      control={form.control}
-                      name="location"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Location *</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="City, State"
-                              {...field}
-                              data-testid="input-location"
-                              required
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <FormItem>
+                      <FormLabel>Location *</FormLabel>
+                      <div className="relative">
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Search for a city or location..."
+                            value={locationQuery}
+                            onChange={(e) => {
+                              setLocationQuery(e.target.value);
+                              setShowSuggestions(true);
+                              form.setValue("location", e.target.value);
+                            }}
+                            onFocus={() => setShowSuggestions(true)}
+                            className="pl-10"
+                            required
+                          />
+                          {isLoadingSuggestions && (
+                            <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+                          )}
+                        </div>
+                        
+                        {showSuggestions && locationSuggestions.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-popover text-popover-foreground shadow-md rounded-md border max-h-60 overflow-y-auto">
+                            {locationSuggestions.map((suggestion, index) => (
+                              <div
+                                key={suggestion.place_id || suggestion.osm_id || index}
+                                className="px-4 py-2 cursor-pointer hover:bg-accent"
+                                onClick={() => handleLocationSelect(suggestion)}
+                              >
+                                {suggestion.display_name}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <FormMessage>
+                        {form.formState.errors.location?.message}
+                      </FormMessage>
+                    </FormItem>
 
                     <FormField
                       control={form.control}
