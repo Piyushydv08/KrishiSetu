@@ -1,6 +1,6 @@
 import { Express, Request, Response } from "express";
 import { createServer } from "http";
-import { MongoStorage } from "./storage";
+import { MongoStorage, getDb } from "./storage";
 import { z } from "zod";
 import {
   insertUserSchema, insertProductSchema, insertTransactionSchema,
@@ -767,17 +767,65 @@ export async function registerRoutes(app: Express) {
       const usersCount = await storage.countUsers();
       const scansCount = await storage.countScans();
       const transfersCount = await storage.countTransfers();
-      
-      return res.json({
-        products: productsCount,
-        users: usersCount,
-        scans: scansCount,
-        transfers: transfersCount,
+
+      console.log("Stats counts:", { productsCount, usersCount, scansCount, transfersCount });
+
+      // Additional calculations for dashboard
+      const db = await getDb();
+      const verifiedBatches = await db.collection('products').countDocuments({ blockchainHash: { $exists: true, $ne: null } });
+      const activeShipments = await db.collection('transactions').countDocuments({ transactionType: 'shipment' }); // Assuming transactionType exists
+      const qualityChecks = await db.collection('qualitychecks').find({}).toArray();
+      const averageQualityScore = qualityChecks.length > 0 ? qualityChecks.reduce((sum: number, qc: any) => sum + (parseFloat(qc.score) || 0), 0) / qualityChecks.length : 0;
+
+      console.log("Additional stats:", { verifiedBatches, activeShipments, averageQualityScore, qualityChecksCount: qualityChecks.length });
+
+      const result = {
+        totalProducts: productsCount,
+        verifiedBatches,
+        activeShipments,
+        averageQualityScore,
         updatedAt: new Date()
-      });
+      };
+
+      console.log("Returning stats:", result);
+
+      return res.json(result);
     } catch (error) {
       console.error("Error fetching stats:", error);
       return res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // --- User-specific stats endpoint ---
+  app.get("/api/user/:id/stats", async (req: Request, res: Response) => {
+    try {
+      const userId = req.params.id;
+      const db = await getDb();
+
+      // Count products owned by user
+      const totalProducts = await db.collection('products').countDocuments({ ownerId: userId });
+
+      // Count active transfers (pending ownership transfers where user is sender)
+      const activeTransfers = await db.collection('ownershiptransfers').countDocuments({ fromUserId: userId, status: 'pending' });
+
+      // Count completed transfers
+      const completedTransfers = await db.collection('ownershiptransfers').countDocuments({ fromUserId: userId, status: 'completed' });
+
+      // Average rating - for now, placeholder as ratings not implemented
+      const averageRating = 0; // TODO: implement ratings system
+
+      console.log("User stats for", userId, { totalProducts, activeTransfers, completedTransfers, averageRating });
+
+      return res.json({
+        totalProducts,
+        activeTransfers,
+        completedTransfers,
+        averageRating,
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      console.error("Error fetching user stats:", error);
+      return res.status(500).json({ message: "Failed to fetch user stats" });
     }
   });
 

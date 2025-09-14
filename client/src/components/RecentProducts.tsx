@@ -1,4 +1,4 @@
-import { useProducts } from "@/hooks/useProducts";
+import { useUserProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { formatDistanceToNow } from "date-fns";
 
 export function RecentProducts() {
   const { user } = useAuth();
-  const { data: products, isLoading, error } = useProducts(user?.id);
+  const { data: products, isLoading, error } = useUserProducts(user);
 
   if (isLoading) {
     return (
