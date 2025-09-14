@@ -9,16 +9,22 @@ const LandingPage = () => {
     setLocation("/dashboard"); // Navigate to dashboard
   };
 
+  const navigateTo = (path: string) => {
+    setLocation(path);
+  };
+
   return (
     <div className="landing-page">
       <nav className="navbar">
         <div className="logo">FarmTrace</div>
         <ul className="nav-links">
-          <li>Features</li>
-         
-          <li>Pricing</li>
-          <li>About Us</li>
-          <li>Contact</li>
+          
+          <li onClick={() => navigateTo("/HowItWorks")}>How it works</li>
+          <li onClick={() => navigateTo("/about")}>about</li>
+          <li onClick={() => navigateTo("/contact")}>contact</li>
+          
+          
+          
         </ul>
       </nav>
 

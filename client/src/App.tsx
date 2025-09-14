@@ -5,7 +5,10 @@ import { Toaster } from "react-hot-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import LandingPage from "@/pages/LandingPage";
+import Contact from "@/pages/contact";
+import about from "@/pages/about";
 import Dashboard from "@/pages/dashboard";
+import HowItWorks from "./pages/howitworks";
 import ProductRegistration from "@/pages/product-registration";
 import QRScannerPage from "@/pages/qr-scanner";
 import ProductDetails from "@/pages/product-details";
@@ -34,6 +37,9 @@ function App() {
         />
         <Switch>
           <Route path="/" component={LandingPage} />
+          <Route path="/contact" component={Contact} />
+          <Route path="/about" component={about} />
+          <Route path="/howitworks" component={HowItWorks} />
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/product-registration" component={ProductRegistration} />
           <Route path="/qr-scanner" component={QRScannerPage} />
