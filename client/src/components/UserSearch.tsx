@@ -36,6 +36,8 @@ export function UserSearch({
   const [isSearching, setIsSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [recentSearches, setRecentSearches] = useState<User[]>([]);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -97,6 +99,7 @@ export function UserSearch({
 
       setIsSearching(true);
       setIsOpen(true);
+      setSearchError(null);
       
       try {
         const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
@@ -111,6 +114,7 @@ export function UserSearch({
         }
       } catch (error) {
         console.error('Search failed:', error);
+        setSearchError('Failed to search for users');
         toast({
           title: 'Search Error',
           description: 'Failed to search for users',
@@ -125,12 +129,23 @@ export function UserSearch({
     return () => clearTimeout(timeoutId);
   }, [query, currentUserId, toast]);
 
+  // Load recent searches from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem("recentUserSearches");
+    if (stored) setRecentSearches(JSON.parse(stored));
+  }, []);
+
   const handleUserSelect = (user: User) => {
     onUserSelect(user);
     setQuery('');
     setResults([]);
     setIsOpen(false);
     setHighlightedIndex(-1);
+
+    // Update recent searches
+    const updated = [user, ...recentSearches.filter(u => u.id !== user.id)].slice(0, 5);
+    setRecentSearches(updated);
+    localStorage.setItem("recentUserSearches", JSON.stringify(updated));
   };
 
   const clearSearch = () => {
@@ -186,66 +201,121 @@ export function UserSearch({
           </button>
         )}
         {isSearching && (
-          <Loader2 className="absolute right-8 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+          <div className="p-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="flex items-center gap-2 mb-2 animate-pulse">
+                <div className="h-8 w-8 bg-muted rounded-full" />
+                <div className="flex-1 h-4 bg-muted rounded" />
+              </div>
+            ))}
+          </div>
         )}
       </div>
       
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-lg max-h-80 overflow-auto">
-          {results.length > 0 ? (
-            <div className="py-1">
-              {results.map((user, index) => (
-                <div
-                  key={user.id}
-                  className={`flex items-center p-3 cursor-pointer transition-colors ${
-                    highlightedIndex === index
-                      ? 'bg-accent text-accent-foreground'
-                      : 'hover:bg-muted'
-                  }`}
-                  onClick={() => handleUserSelect(user)}
-                  onMouseEnter={() => setHighlightedIndex(index)}
-                >
-                  <Avatar className="h-10 w-10 mr-3">
-                    <AvatarImage src={user.profileImage} />
-                    <AvatarFallback>
-                      <User className="h-5 w-5" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {highlightMatch(user.name, query)}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      @{highlightMatch(user.username, query)}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {highlightMatch(user.email, query)}
-                    </p>
-                    <Badge variant="outline" className="mt-1 text-xs">
-                      {user.role}
-                    </Badge>
+          <div role="listbox">
+            {results.length > 0 ? (
+              <div className="py-1">
+                {results.map((user, index) => (
+                  <div
+                    key={user.id}
+                    role="option"
+                    aria-selected={highlightedIndex === index}
+                    className={`relative flex items-center p-3 cursor-pointer transition-colors ${
+                      highlightedIndex === index
+                        ? 'bg-accent text-accent-foreground'
+                        : 'hover:bg-muted'
+                    }`}
+                    onClick={() => handleUserSelect(user)}
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                  >
+                    <Avatar className="h-10 w-10 mr-3">
+                      <AvatarImage src={user.profileImage} />
+                      <AvatarFallback>
+                        <User className="h-5 w-5" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {highlightMatch(user.name, query)}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        @{highlightMatch(user.username, query)}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {highlightMatch(user.email, query)}
+                      </p>
+                      <Badge variant="outline" className="mt-1 text-xs">
+                        {user.role}
+                      </Badge>
+                    </div>
+                    {highlightedIndex === index && (
+                      <Check className="h-4 w-4 text-green-500 flex-shrink-0 ml-2" />
+                    )}
+                    <div className="absolute left-full top-0 ml-2 w-64 p-2 bg-white border rounded shadow-lg opacity-0 group-hover:opacity-100 transition">
+                      <p><b>Name:</b> {user.name}</p>
+                      <p><b>Email:</b> {user.email}</p>
+                      <p><b>Role:</b> {user.role}</p>
+                    </div>
                   </div>
-                  {highlightedIndex === index && (
-                    <Check className="h-4 w-4 text-green-500 flex-shrink-0 ml-2" />
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
+            ) : query.length > 0 ? (
+              <div className="p-4 text-center">
+                {isSearching ? (
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <span className="text-sm text-muted-foreground">Searching...</span>
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    <p>No users found matching "{query}"</p>
+                    <p className="text-xs mt-1">Try different keywords</p>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {isOpen && query.length === 0 && recentSearches.length > 0 && (
+        <div className="py-1">
+          <div className="px-4 py-2 text-xs text-muted-foreground">Recent</div>
+          {recentSearches.map((user, index) => (
+            <div
+              key={user.id}
+              className="flex items-center p-3 cursor-pointer hover:bg-muted"
+              onClick={() => handleUserSelect(user)}
+            >
+              <Avatar className="h-8 w-8 mr-2">
+                <AvatarImage src={user.profileImage} />
+                <AvatarFallback>
+                  <User className="h-4 w-4" />
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="text-sm font-medium">{user.name}</p>
+                <p className="text-xs text-muted-foreground">@{user.username}</p>
+              </div>
             </div>
-          ) : query.length > 0 ? (
-            <div className="p-4 text-center">
-              {isSearching ? (
-                <div className="flex items-center justify-center">
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  <span className="text-sm text-muted-foreground">Searching...</span>
-                </div>
-              ) : (
-                <div className="text-sm text-muted-foreground">
-                  <p>No users found matching "{query}"</p>
-                  <p className="text-xs mt-1">Try different keywords</p>
-                </div>
-              )}
-            </div>
-          ) : null}
+          ))}
+          <button
+            className="text-xs text-blue-600 hover:underline ml-4"
+            onClick={() => {
+              setRecentSearches([]);
+              localStorage.removeItem("recentUserSearches");
+            }}
+          >
+            Clear recent
+          </button>
+        </div>
+      )}
+
+      {searchError && (
+        <div className="p-4 text-center text-red-500">
+          {searchError}
         </div>
       )}
 

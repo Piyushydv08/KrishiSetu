@@ -191,6 +191,24 @@ export class MongoStorage {
 
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
     const db = await getDb();
+
+    // Use a hash for batchId based on product name, farmName, and createdAt
+    const createdAt = new Date();
+    const batchId = insertProduct.batchId ||
+      createHash('sha256')
+        .update(`${insertProduct.name}-${insertProduct.farmName}-${createdAt.toISOString()}`)
+        .digest('hex')
+        .slice(0, 10);
+
+    // Use a hash for blockchainHash based on product data and batchId
+    const blockchainHash = insertProduct.blockchainHash ||
+      createHash('sha256')
+        .update(`${insertProduct.name}-${batchId}-${createdAt.toISOString()}`)
+        .digest('hex');
+
+    // Generate qrCode if not provided (example: use batchId in a URL)
+    const qrCode = insertProduct.qrCode || `/product/${batchId}`;
+
     const product: Product = {
       ...insertProduct,
       id: randomUUID(),
@@ -198,10 +216,10 @@ export class MongoStorage {
       description: insertProduct.description || null,
       certifications: insertProduct.certifications || null,
       status: insertProduct.status || "registered",
-      qrCode: insertProduct.qrCode || null,
-      batchId: insertProduct.batchId || null,
-      blockchainHash: insertProduct.blockchainHash || null,
-      createdAt: new Date()
+      batchId,
+      qrCode,
+      blockchainHash,
+      createdAt
     };
     await db.collection<Product>("products").insertOne(product);
     return product;

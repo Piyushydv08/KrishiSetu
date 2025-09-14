@@ -118,9 +118,8 @@ export async function registerRoutes(app: Express) {
     try {
       const q = (req.query.q as string || "").trim();
       if (!q) return res.json([]);
-      
       const users = await storage.searchUsers(q, 10);
-      return res.json(users || []); 
+      return res.json(users || []);
     } catch (error) {
       console.error("User search error:", error);
       res.status(500).json({ message: "Failed to search users" });

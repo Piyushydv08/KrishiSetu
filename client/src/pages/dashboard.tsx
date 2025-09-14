@@ -8,14 +8,15 @@ import { RoleSelection } from "@/components/RoleSelection";
 import { RoleDashboard } from "@/components/RoleDashboard";
 import { Button } from "@/components/ui/button";
 import React, { useState, useEffect } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { QrCode, Plus } from "lucide-react";
 
 export default function Dashboard() {
-  const { user, refetchUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [showRoleSelection, setShowRoleSelection] = useState(false);
+  const [, navigate] = useLocation();
 
   // Check if user needs role selection
   useEffect(() => {
@@ -111,7 +112,7 @@ export default function Dashboard() {
           isVisible={showRoleSelection}
           onRoleSelected={async () => {
             setShowRoleSelection(false);
-            await refetchUser(); // Refresh user data
+            await refreshUser();
           }}
         />
       </main>

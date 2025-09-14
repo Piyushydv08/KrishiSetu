@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { QrCode, Download, Copy, Check } from "lucide-react";
 import type { Product } from "@shared/schema";
+import { QRCodeCanvas } from "qrcode.react";
 
 interface QRCodeGeneratorProps {
   product: Product;
@@ -11,20 +12,41 @@ interface QRCodeGeneratorProps {
 export function QRCodeGenerator({ product }: QRCodeGeneratorProps) {
   const [copied, setCopied] = useState(false);
 
+  const qrValue = product.qrCode || `/product/${product.batchId || product.id}`;
+
   const handleCopyLink = async () => {
-    const productUrl = `${window.location.origin}/product/${product.id}`;
-    await navigator.clipboard.writeText(productUrl);
+    await navigator.clipboard.writeText(qrValue);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownload = () => {
-    // Create a download link for the QR code
-    const link = document.createElement("a");
-    link.href = product.qrCode || '';
-    link.download = `QR-${product.batchId || 'product'}.png`;
-    link.click();
+    const canvas = document.getElementById("product-qr-canvas") as HTMLCanvasElement;
+    if (canvas) {
+      const url = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `QR-${product.batchId || 'product'}.png`;
+      link.click();
+    }
   };
+
+  // Prevent rendering if the value is too long for a QR code
+  if (qrValue.length > 300) {
+    return (
+      <Card className="shadow-sm border border-border">
+        <CardHeader>
+          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <QrCode className="w-5 h-5 text-primary" />
+            QR Code
+          </h3>
+        </CardHeader>
+        <CardContent className="text-center space-y-4">
+          <div className="text-red-500">QR code data too long to encode.</div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="shadow-sm border border-border">
@@ -37,11 +59,12 @@ export function QRCodeGenerator({ product }: QRCodeGeneratorProps) {
 
       <CardContent className="text-center space-y-4">
         <div className="bg-white p-4 rounded-lg inline-block shadow-sm">
-          <img
-            src={product.qrCode || ''}
-            alt={`QR Code for ${product.name} - Batch ${product.batchId || ''}`}
-            className="w-48 h-48"
-            data-testid="img-qr-code"
+          <QRCodeCanvas
+            id="product-qr-canvas"
+            value={qrValue}
+            size={192}
+            includeMargin={true}
+            level="H"
           />
         </div>
 

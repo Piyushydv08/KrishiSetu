@@ -48,7 +48,11 @@ export const productSchema = z.object({
 export type Product = z.infer<typeof productSchema>;
 
 export const insertProductSchema = productSchema.omit({ id: true, createdAt: true }).extend({
-  createdAt: z.date().optional()
+  createdAt: z.date().optional(),
+  harvestDate: z.preprocess(
+    (val) => (typeof val === "string" ? new Date(val) : val),
+    z.date()
+  )
 });
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 

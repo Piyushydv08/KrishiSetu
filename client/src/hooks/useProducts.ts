@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import type { Product, InsertProduct } from '@shared/schema';
+import { getAuth } from "firebase/auth";
 
 export function useProducts(userId?: string) {
   return useQuery({
@@ -43,13 +44,21 @@ export function useCreateProduct() {
 
   return useMutation({
     mutationFn: async (productData: InsertProduct) => {
-      const response = await apiRequest('POST', '/api/products', productData);
+      // Get the UID from your auth system
+      const firebaseUid = getAuth().currentUser?.uid;
+      if (!firebaseUid) throw new Error("Not authenticated");
+
+      const response = await apiRequest(
+        'POST',
+        '/api/products',
+        productData,
+        { 'firebase-uid': firebaseUid }
+      );
       return response.json() as Promise<Product>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/products'] });
       queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
-      // Also invalidate user-specific stats queries
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
     }
   });

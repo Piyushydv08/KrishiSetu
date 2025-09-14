@@ -40,6 +40,8 @@ export function ProductSearch({
   const [isSearching, setIsSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [recentSearches, setRecentSearches] = useState<Product[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -92,6 +94,11 @@ export function ProductSearch({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, results, highlightedIndex]);
 
+  useEffect(() => {
+    const stored = localStorage.getItem("recentProductSearches");
+    if (stored) setRecentSearches(JSON.parse(stored));
+  }, []);
+
   const searchProducts = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim() || !ownerId) {
       setResults([]);
@@ -100,6 +107,7 @@ export function ProductSearch({
     }
 
     setIsSearching(true);
+    setSearchError(null);
     
     try {
       const response = await fetch(
@@ -126,6 +134,7 @@ export function ProductSearch({
       }
     } catch (error) {
       console.error('Product search failed:', error);
+      setSearchError('Failed to search products');
       toast({
         title: 'Search Error',
         description: 'Failed to search products',
@@ -175,6 +184,21 @@ export function ProductSearch({
     return new Date(date).toLocaleDateString();
   };
 
+  const highlightMatch = (text: string, query: string) => {
+    if (!query) return text;
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, index) =>
+      regex.test(part) ? (
+        <span key={index} className="bg-yellow-200 dark:bg-yellow-800 font-semibold">
+          {part}
+        </span>
+      ) : (
+        part
+      )
+    );
+  };
+
   return (
     <div className="relative w-full" ref={searchRef}>
       <div className="relative">
@@ -198,68 +222,94 @@ export function ProductSearch({
           </button>
         )}
         {isSearching && (
-          <Loader2 className="absolute right-8 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+          <div className="p-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="flex items-center gap-2 mb-2 animate-pulse">
+                <div className="h-8 w-8 bg-muted rounded-full" />
+                <div className="flex-1 h-4 bg-muted rounded" />
+              </div>
+            ))}
+          </div>
         )}
       </div>
       
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-lg max-h-80 overflow-auto">
-          {results.length > 0 ? (
-            <div className="py-1">
-              {results.map((product, index) => (
-                <div
-                  key={product.id}
-                  className={`flex items-start p-3 cursor-pointer transition-colors ${
-                    highlightedIndex === index
-                      ? 'bg-accent text-accent-foreground'
-                      : 'hover:bg-muted'
-                  }`}
-                  onClick={() => handleProductSelect(product)}
-                  onMouseEnter={() => setHighlightedIndex(index)}
-                >
-                  <Package className="h-5 w-5 mr-3 mt-1 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{product.name}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="text-xs">
-                        {product.category}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {product.quantity} {product.unit}
-                      </span>
+          <div role="listbox">
+            {results.length > 0 ? (
+              <div className="py-1">
+                {results.map((product, index) => (
+                  <div
+                    key={product.id}
+                    role="option"
+                    aria-selected={highlightedIndex === index}
+                    className={`relative flex items-start p-3 cursor-pointer transition-colors ${
+                      highlightedIndex === index
+                        ? 'bg-accent text-accent-foreground'
+                        : 'hover:bg-muted'
+                    }`}
+                    onClick={() => handleProductSelect(product)}
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                  >
+                    <Package className="h-5 w-5 mr-3 mt-1 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{highlightMatch(product.name, query)}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs">
+                          {product.category}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {product.quantity} {product.unit}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                        <MapPin className="h-3 w-3" />
+                        <span>{product.farmName}</span>
+                      </div>
+                      {product.batchId && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Batch: {product.batchId}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        <span>Harvested: {formatDate(product.harvestDate)}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                      <MapPin className="h-3 w-3" />
-                      <span>{product.farmName}</span>
-                    </div>
-                    {product.batchId && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Batch: {product.batchId}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                      <Calendar className="h-3 w-3" />
-                      <span>Harvested: {formatDate(product.harvestDate)}</span>
+
+                    {/* Tooltip with product details */}
+                    <div className="absolute left-full top-0 ml-2 w-64 p-2 bg-white border rounded shadow-lg opacity-0 group-hover:opacity-100 transition">
+                      <p><b>Name:</b> {product.name}</p>
+                      <p><b>Category:</b> {product.category}</p>
+                      <p><b>Farm:</b> {product.farmName}</p>
+                      <p><b>Batch:</b> {product.batchId}</p>
+                      <p><b>Harvest:</b> {formatDate(product.harvestDate)}</p>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : query.length > 0 ? (
-            <div className="p-4 text-center">
-              {isSearching ? (
-                <div className="flex items-center justify-center">
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  <span className="text-sm text-muted-foreground">Searching...</span>
-                </div>
-              ) : (
-                <div className="text-sm text-muted-foreground">
-                  <p>No products found matching "{query}"</p>
-                  <p className="text-xs mt-1">Try different keywords</p>
-                </div>
-              )}
-            </div>
-          ) : null}
+                ))}
+              </div>
+            ) : query.length > 0 ? (
+              <div className="p-4 text-center">
+                {isSearching ? (
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <span className="text-sm text-muted-foreground">Searching...</span>
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    <p>No products found matching "{query}"</p>
+                    <p className="text-xs mt-1">Try different keywords</p>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {searchError && (
+        <div className="p-4 text-center text-red-500">
+          {searchError}
         </div>
       )}
 
