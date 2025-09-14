@@ -16,7 +16,7 @@ interface Owner {
 }
 
 export default function RegisteredProductsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { data: products, isLoading, isError, refetch } = useProducts(user?.id);
   const [ownersMap, setOwnersMap] = useState<Record<string, Owner[]>>({});
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -61,6 +61,19 @@ export default function RegisteredProductsPage() {
       toast.error("Could not update product");
     }
   };
+
+  if (authLoading) {
+    return (
+      <>
+        <NavigationHeader />
+        <div className="max-w-4xl mx-auto py-8">
+          <div className="text-center text-muted-foreground">
+            Loading products...
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

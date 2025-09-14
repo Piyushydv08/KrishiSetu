@@ -34,28 +34,72 @@ export function NavigationHeader() {
 
   if (!user || !firebaseUser) {
     return (
-      <nav className="bg-card border-b border-border sticky top-0 z-50 shadow-sm">
+      <nav className="bg-card border-b border-border sticky top-0 z-50 shadow-sm w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center flex-wrap gap-2">
-            <div className="flex items-center flex-shrink-0">
-              <h1
-                className="text-2xl font-bold text-primary flex items-center gap-2 cursor-pointer hover:opacity-80"
-                onClick={() => setLocation("/")}
-                style={{ userSelect: "none" }}
-                data-testid="logo-home"
-              >
-                <Sprout className="w-6 h-6" />
-                FarmTrace
-              </h1>
+          {/* Flex container with wrapping */}
+          <div className="flex flex-wrap justify-between items-center h-16 gap-2">
+            {/* Left side: Logo + nav links */}
+            <div className="flex flex-wrap items-center gap-4 flex-grow min-w-0">
+              <div className="flex-shrink-0">
+                <h1
+                  className="text-2xl font-bold text-primary flex items-center gap-2 cursor-pointer hover:opacity-80"
+                  onClick={() => setLocation("/")}
+                  style={{ userSelect: "none" }}
+                  data-testid="logo-home"
+                >
+                  <Sprout className="w-6 h-6" />
+                  FarmTrace
+                </h1>
+              </div>
+
+              {/* Desktop nav links - hide on small */}
+              <div className="hidden md:flex space-x-4 min-w-0 flex-shrink">
+                <Link
+                  href="/dashboard"
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActiveRoute("/dashboard")
+                      ? "text-primary border-b-2 border-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  } truncate`}
+                  data-testid="link-dashboard"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/qr-scanner"
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActiveRoute("/qr-scanner")
+                      ? "text-primary border-b-2 border-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  } truncate`}
+                  data-testid="link-scanner"
+                >
+                  QR Scanner
+                </Link>
+                <Link
+                  href="/registered-products"
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActiveRoute("/registered-products")
+                      ? "text-primary border-b-2 border-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  } truncate`}
+                  data-testid="link-registered-products"
+                >
+                  Registered Products
+                </Link>
+              </div>
             </div>
 
-            <Button
-              onClick={() => setLocation("/login")}
-              data-testid="button-login"
-              className="whitespace-nowrap"
-            >
-              Sign In/Up
-            </Button>
+            {/* Right side: Sign In/Up button */}
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <Button
+                onClick={() => setLocation("/login")}
+                data-testid="button-login"
+                className="whitespace-nowrap"
+              >
+                Sign In/Up
+              </Button>
+            </div>
           </div>
         </div>
       </nav>
