@@ -108,7 +108,7 @@ export default function ProfilePage() {
   const onSubmit = async (data: ProfileFormData) => {
     setIsUpdating(true);
     try {
-      await apiRequest('PATCH', `/api/user/${user.id}`, data);
+      await apiRequest('PUT', `/api/user/profile`, data);
       
       toast({
         title: "Profile Updated",

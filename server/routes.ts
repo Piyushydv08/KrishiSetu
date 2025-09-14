@@ -112,7 +112,36 @@ export async function registerRoutes(app: Express) {
     if (!user) return res.status(404).json({ message: "User not found" });
     return res.json(user);
   });
+app.patch("/api/users/:id", async (req: Request, res: Response) => {
+  try {
+    const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
+    if (!firebaseUid) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
+    const { id } = req.params;
+    const userToUpdate = await storage.getUser(id);
+    if (!userToUpdate) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if the authenticated user is the same as the user being updated
+    if (userToUpdate.firebaseUid !== firebaseUid) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const updates = req.body;
+    // Remove protected fields
+    delete updates.firebaseUid;
+    delete updates.id;
+
+    const updatedUser = await storage.updateUser(id, updates);
+    return res.json(updatedUser);
+  } catch (error) {
+    console.error("Error updating user:", error);
+    return res.status(500).json({ message: "Failed to update user" });
+  }
+});
 
   app.get("/api/users/search", async (req, res) => {
     try {
