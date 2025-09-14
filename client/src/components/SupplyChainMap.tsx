@@ -4,7 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MapPin, Sprout, Factory, Warehouse, Store, Calendar } from 'lucide-react';
+import { MapPin, Sprout, Factory, Warehouse, Store, Calendar, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface JourneyStep {
   id: string;
@@ -15,6 +16,7 @@ interface JourneyStep {
   icon: React.ComponentType<{ className?: string }>;
   bgColor: string;
   textColor: string;
+  coordinates?: { lat: number; lng: number };
 }
 
 interface SupplyChainMapProps {
@@ -27,18 +29,87 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
   const [selectedProductId, setSelectedProductId] = useState<string>(productId || '');
   const selectedProduct = products?.find(p => p.id === selectedProductId) || products?.[0];
 
+  // Define coordinates for Indian locations
+  const locationCoordinates: Record<string, { lat: number; lng: number }> = {
+    'Haryana': { lat: 29.0588, lng: 76.0856 }, // Approximate center of Haryana
+    'Chandigarh': { lat: 30.7333, lng: 76.7794 },
+    'Delhi': { lat: 28.6139, lng: 77.2090 },
+    'Bangalore': { lat: 12.9716, lng: 77.5946 }
+  };
+
   const journeySteps: JourneyStep[] = [
-    { id: '1', name: selectedProduct?.farmName || 'Sunny Acres Farm', location: selectedProduct?.location || 'Fresno, CA', date: 'Jan 10', status: 'Harvested', icon: Sprout, bgColor: 'bg-primary', textColor: 'text-primary-foreground' },
-    { id: '2', name: 'Fresh Pack Co.', location: 'Salinas, CA', date: 'Jan 12', status: 'Processed', icon: Factory, bgColor: 'bg-accent', textColor: 'text-accent-foreground' },
-    { id: '3', name: 'Central Distribution', location: 'Los Angeles, CA', date: 'Jan 14', status: 'Shipped', icon: Warehouse, bgColor: 'bg-warning', textColor: 'text-white' },
-    { id: '4', name: 'Green Market', location: 'San Francisco, CA', date: 'In Transit', status: 'Delivering', icon: Store, bgColor: 'bg-secondary', textColor: 'text-secondary-foreground' }
+    { 
+      id: '1', 
+      name: selectedProduct?.farmName || 'Sunny Acres Farm', 
+      location: 'Haryana', 
+      date: 'Jan 10', 
+      status: 'Harvested', 
+      icon: Sprout, 
+      bgColor: 'bg-primary', 
+      textColor: 'text-primary-foreground',
+      coordinates: locationCoordinates['Haryana']
+    },
+    { 
+      id: '2', 
+      name: 'Fresh Pack Co.', 
+      location: 'Chandigarh', 
+      date: 'Jan 12', 
+      status: 'Processed', 
+      icon: Factory, 
+      bgColor: 'bg-accent', 
+      textColor: 'text-accent-foreground',
+      coordinates: locationCoordinates['Chandigarh']
+    },
+    { 
+      id: '3', 
+      name: 'Central Distribution', 
+      location: 'Delhi', 
+      date: 'Jan 14', 
+      status: 'Shipped', 
+      icon: Warehouse, 
+      bgColor: 'bg-warning', 
+      textColor: 'text-white',
+      coordinates: locationCoordinates['Delhi']
+    },
+    { 
+      id: '4', 
+      name: 'Green Market', 
+      location: 'Bangalore', 
+      date: 'Jan 16', 
+      status: 'Delivering', 
+      icon: Store, 
+      bgColor: 'bg-secondary', 
+      textColor: 'text-secondary-foreground',
+      coordinates: locationCoordinates['Bangalore']
+    }
   ];
 
   const journeyStats = {
     verifiedStages: 4,
-    totalDistance: '847 mi',
-    journeyTime: '5 days',
-    avgTemperature: '68°F'
+    totalDistance: '2,100 km',
+    journeyTime: '6 days',
+    avgTemperature: '28°C'
+  };
+
+  // Function to open Google Maps with the route
+  const openGoogleMapsRoute = () => {
+    if (journeySteps.length < 2) return;
+    
+    // Create waypoints for the route (all intermediate points)
+    const waypoints = journeySteps
+      .slice(1, -1)
+      .map(step => `${step.coordinates?.lat},${step.coordinates?.lng}`)
+      .join('|');
+    
+    // Create origin and destination
+    const origin = `${journeySteps[0].coordinates?.lat},${journeySteps[0].coordinates?.lng}`;
+    const destination = `${journeySteps[journeySteps.length - 1].coordinates?.lat},${journeySteps[journeySteps.length - 1].coordinates?.lng}`;
+    
+    // Construct the Google Maps URL
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${waypoints}&travelmode=driving`;
+    
+    // Open in a new tab
+    window.open(mapsUrl, '_blank');
   };
 
   if (isLoading) {
@@ -62,18 +133,28 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
           <MapPin className="w-5 h-5 text-accent" />
           Supply Chain Journey
         </h3>
-        <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-          <SelectTrigger className="w-full sm:w-64">
-            <SelectValue placeholder="Select a product" />
-          </SelectTrigger>
-          <SelectContent>
-            {products?.map(p => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.batchId} – {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3">
+          <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+            <SelectTrigger className="w-full sm:w-64">
+              <SelectValue placeholder="Select a product" />
+            </SelectTrigger>
+            <SelectContent>
+              {products?.map(p => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.batchId} – {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button 
+            onClick={openGoogleMapsRoute}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <ExternalLink className="w-4 h-4" />
+            View on Map
+          </Button>
+        </div>
       </CardHeader>
 
       {/* Map & Steps */}
@@ -106,7 +187,7 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
                     {/* Arrow - Show for ALL items */}
                     <div className="flex-shrink-0 ml-3">
                       <svg 
-                        className="w-5 h-5 text-black-600" 
+                        className="w-5 h-5 text-blue-600" 
                         fill="none" 
                         stroke="currentColor" 
                         viewBox="0 0 24 24"

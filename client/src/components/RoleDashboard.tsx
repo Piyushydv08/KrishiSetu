@@ -330,7 +330,7 @@ export function RoleDashboard({
       {/* Role Header */}
       <Card className="border-l-4 border-l-primary">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               {getRoleIcon()}
               <div>
@@ -340,12 +340,13 @@ export function RoleDashboard({
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
               {(role === "farmer" || role === "distributor") &&
                 onRegisterProduct && (
                   <Button
                     onClick={onRegisterProduct}
                     data-testid="button-register-product"
+                    className="w-full sm:w-auto"
                   >
                     <Package className="w-4 h-4 mr-2" />
                     Register Product
@@ -356,6 +357,7 @@ export function RoleDashboard({
                   variant="outline"
                   onClick={onScanQR}
                   data-testid="button-scan-qr"
+                  className="w-full sm:w-auto"
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Scan QR

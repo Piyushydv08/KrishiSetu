@@ -80,7 +80,7 @@ export default function RegisteredProductsPage() {
       <NavigationHeader />
       <div className="max-w-4xl mx-auto py-8">
         <h1 className="text-2xl font-bold mb-4">Registered Products</h1>
-        <p className="mb-4 text-muted-foreground">
+        <p className="mb-2 px-8  text-muted-foreground">
           {user?.role === "farmer" &&
             "Here are all the products you have registered as a farmer."}
           {user?.role === "distributor" &&
