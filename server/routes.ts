@@ -437,11 +437,11 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
         status: "pending" // Set to pending until accepted
       });
       
-      // Create notification for the current owner
+      // Create notification for the new owner (recipient)
       await storage.createNotification({
-        userId: product.ownerId,
+        userId: parse.data.toUserId,
         title: "Product Ownership Request",
-        message: `${currentUser.name} (${currentUser.role}) requested ownership of ${product.name}.`,
+        message: `${currentUser.name} sent an ownership transfer request for ${product.name} to you.`,
         type: "ownership_request",
         productId: product.id,
         transferId: transfer.id,
