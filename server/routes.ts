@@ -96,7 +96,26 @@ export async function registerRoutes(app: Express) {
       return res.status(500).json({ message: "Failed to update profile" });
     }
   });
-
+    app.get("/api/users/search", async (req, res) => {
+      try {
+        const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
+        if (!firebaseUid) {
+          return res.status(401).json({ message: "Unauthorized" });
+        }
+        const currentUser = await storage.getUserByFirebaseUid(firebaseUid);
+        if (!currentUser) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        const q = (req.query.q as string || "").trim();
+        if (!q) return res.json([]);
+        let users = await storage.searchUsers(q, 10);
+        users = users.filter(u => u.id !== currentUser.id);
+        return res.json(users || []);
+      } catch (error) {
+        console.error("User search error:", error);
+        res.status(500).json({ message: "Failed to search users" });
+      }
+    });
   // --- User Routes ---
   app.post("/api/users", async (req: Request, res: Response) => {
     const parse = insertUserSchema.safeParse(req.body);
@@ -142,18 +161,6 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Failed to update user" });
   }
 });
-
-  app.get("/api/users/search", async (req, res) => {
-    try {
-      const q = (req.query.q as string || "").trim();
-      if (!q) return res.json([]);
-      const users = await storage.searchUsers(q, 10);
-      return res.json(users || []);
-    } catch (error) {
-      console.error("User search error:", error);
-      res.status(500).json({ message: "Failed to search users" });
-    }
-  });
 
   // --- Product Routes ---
   app.post("/api/products", async (req: Request, res: Response) => {
@@ -433,14 +440,21 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
       // Create notification for the current owner
       await storage.createNotification({
         userId: product.ownerId,
-        title: "Ownership Transfer Request",
-        message: `${currentUser.name} (${currentUser.role}) wants to transfer ownership of ${product.name} to you.`,
-        type: "ownership_transfer",
+        title: "Product Ownership Request",
+        message: `${currentUser.name} (${currentUser.role}) requested ownership of ${product.name}.`,
+        type: "ownership_request",
         productId: product.id,
         transferId: transfer.id,
         read: false,
         createdAt: new Date()
       });
+      await storage.logProductEvent(
+        product.id,
+        "ownership_request",
+        `${currentUser.name} requested ownership.`,
+        currentUser.id,
+        { transferId: transfer.id }
+      );
       
       return res.status(201).json({
         message: "Transfer request sent. Waiting for acceptance.",
@@ -519,11 +533,19 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
         userId: transfer.fromUserId,
         title: "Ownership Transfer Completed",
         message: `${user.name} has accepted ownership of ${product.name}.`,
-        type: "ownership_transfer_complete",
+        type: "ownership_transfer",
         productId: product.id,
+        transferId: transfer.id,
         read: false,
         createdAt: new Date()
       });
+      await storage.logProductEvent(
+        product.id,
+        "ownership_transfer",
+        `${user.name} accepted ownership.`,
+        user.id,
+        { transferId: transfer.id }
+      );
       
       return res.json({
         message: "Ownership transfer completed successfully",
@@ -614,28 +636,33 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
   });
 
   // --- Notification Routes ---
-  app.post("/api/notifications", async (req: Request, res: Response) => {
-    const parse = insertNotificationSchema.safeParse(req.body);
-    if (!parse.success) {
-      return res.status(400).json({ message: "Invalid notification data", errors: parse.error.format() });
+
+  // Create a notification
+  app.post("/api/notifications", async (req, res) => {
+    try {
+      const parse = insertNotificationSchema.safeParse(req.body);
+      if (!parse.success) {
+        return res.status(400).json({ message: "Invalid notification data", errors: parse.error.format() });
+      }
+      const notification = await storage.createNotification(parse.data);
+      return res.status(201).json(notification);
+    } catch (error) {
+      console.error("Error creating notification:", error);
+      return res.status(500).json({ message: "Failed to create notification" });
     }
-    const notification = await storage.createNotification(parse.data);
-    return res.status(201).json(notification);
   });
 
-  // Get user notifications
-  app.get("/api/notifications", async (req: Request, res: Response) => {
+  // Get all notifications for the authenticated user
+  app.get("/api/notifications", async (req, res) => {
     try {
       const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
       if (!firebaseUid) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      
       const user = await storage.getUserByFirebaseUid(firebaseUid);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
       const notifications = await storage.getUserNotifications(user.id);
       return res.json(notifications);
     } catch (error) {
@@ -644,8 +671,8 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
     }
   });
 
-  // Mark notification as read
-  app.put("/api/notifications/:id/read", async (req: Request, res: Response) => {
+  // Mark a notification as read
+  app.put("/api/notifications/:id/read", async (req, res) => {
     try {
       const notificationId = req.params.id;
       await storage.markNotificationRead(notificationId);
@@ -923,9 +950,61 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
     }
   });
 
-  // Get products available for request (all products not owned by the current user)
-  
+    // Get products available for request (all products not owned by the current user)
+    // Update product status to out for delivery
+  app.put("/api/products/:id/out-for-delivery", async (req: Request, res: Response) => {
+    try {
+      const productId = req.params.id;
+      const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
+      if (!firebaseUid) return res.status(401).json({ message: "Unauthorized" });
+      const user = await storage.getUserByFirebaseUid(firebaseUid);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      // Update product status
+      await storage.updateProduct(productId, { status: "out_for_delivery" });
+
+      // Notify next owner (distributor, etc.)
+      // You may need to determine the next owner based on your logic
+      // For demo, let's notify all previous owners except current
+      const owners = await storage.getProductOwners(productId);
+      const prevOwners = owners.filter(o => o.ownerId !== user.id);
+      for (const owner of prevOwners) {
+        await storage.createNotification({
+          userId: owner.ownerId,
+          title: "Product Out for Delivery",
+          message: `${user.name} marked ${productId} as out for delivery.`,
+          type: "product_out_for_delivery",
+          productId,
+          read: false,
+          createdAt: new Date()
+        });
+      }
+
+      await storage.logProductEvent(
+        productId,
+        "product_out_for_delivery",
+        `${user.name} marked product as out for delivery.`,
+        user.id
+      );
+
+      return res.json({ message: "Product marked as out for delivery" });
+    } catch (error) {
+      console.error("Error marking product out for delivery:", error);
+      return res.status(500).json({ message: "Failed to update product status" });
+    }
+  });
+  app.get("/api/products/:id/events", async (req: Request, res: Response) => {
+    try {
+      const productId = req.params.id;
+      const events = await storage.getProductEvents(productId);
+      return res.json(events);
+    } catch (error) {
+      console.error("Error fetching product events:", error);
+      return res.status(500).json({ message: "Failed to fetch product events" });
+    }
+  });
 
   const server = createServer(app);
   return server;
 }
+
