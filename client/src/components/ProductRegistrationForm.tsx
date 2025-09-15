@@ -78,7 +78,9 @@ export function ProductRegistrationForm({
 
   const formRef = useRef<HTMLDivElement>(null);
   const [locationQuery, setLocationQuery] = useState("");
-  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
+  const [locationSuggestions, setLocationSuggestions] = useState<
+    LocationSuggestion[]
+  >([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -107,7 +109,9 @@ export function ProductRegistrationForm({
     setIsLoadingSuggestions(true);
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=5`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          query
+        )}&addressdetails=1&limit=5`
       );
       const data = await response.json();
       setLocationSuggestions(data);
@@ -156,7 +160,7 @@ export function ProductRegistrationForm({
         name: data.name,
         category: data.category,
         description: data.description || "",
-        quantity: data.quantity, // keep as string
+        quantity: Number(data.quantity),
         unit: data.unit,
         farmName: data.farmName,
         location: data.location,
@@ -182,7 +186,8 @@ export function ProductRegistrationForm({
             toast({
               title: "Registration Failed",
               description:
-                error.message || "Failed to register product. Please try again.",
+                error.message ||
+                "Failed to register product. Please try again.",
               variant: "destructive",
             });
           },
@@ -197,11 +202,11 @@ export function ProductRegistrationForm({
             },
             body: JSON.stringify(productData),
           });
-          
+
           if (!response.ok) {
             throw new Error("Failed to create product");
           }
-          
+
           const product = await response.json();
           toast({
             title: "Success!",
@@ -435,12 +440,16 @@ export function ProductRegistrationForm({
                             <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
                           )}
                         </div>
-                        
+
                         {showSuggestions && locationSuggestions.length > 0 && (
                           <div className="absolute z-10 w-full mt-1 bg-popover text-popover-foreground shadow-md rounded-md border max-h-60 overflow-y-auto">
                             {locationSuggestions.map((suggestion, index) => (
                               <div
-                                key={suggestion.place_id || suggestion.osm_id || index}
+                                key={
+                                  suggestion.place_id ||
+                                  suggestion.osm_id ||
+                                  index
+                                }
                                 className="px-4 py-2 cursor-pointer hover:bg-accent"
                                 onClick={() => handleLocationSelect(suggestion)}
                               >

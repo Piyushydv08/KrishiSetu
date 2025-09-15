@@ -57,8 +57,10 @@ export function useAuth() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async fbUser => {
       if (fbUser) {
+        localStorage.setItem('firebase-uid', fbUser.uid);
         await fetchUserProfile(fbUser);
       } else {
+        localStorage.removeItem('firebase-uid');
         setState({ user: null, firebaseUser: null, loading: false, error: null });
       }
     });
@@ -127,6 +129,7 @@ export function useAuth() {
     setState(prev => ({ ...prev, loading: true, error: null }));
     try {
       await signOut(auth);
+      localStorage.removeItem('firebase-uid');
       setState({ user: null, firebaseUser: null, loading: false, error: null });
     } catch (error: any) {
       setState(prev => ({ ...prev, loading: false, error: error.message || 'Logout failed' }));

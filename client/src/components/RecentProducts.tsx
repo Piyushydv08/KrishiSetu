@@ -178,7 +178,7 @@ export function RecentProducts() {
                     >
                       {product.status}
                     </div>
-                    <Link href={`/product/${product.id}`}>
+                    <Link href={`/product/${product.id}?from=dashboard`}>
                       <Button
                         variant="link"
                         className="mt-2 text-accent hover:text-accent/80 text-xs font-medium flex items-center gap-1 p-0"

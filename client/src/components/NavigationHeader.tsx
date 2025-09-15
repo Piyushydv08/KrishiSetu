@@ -47,8 +47,8 @@ export function NavigationHeader() {
       }
     }
     fetchNotifications();
-    //poll every 10 seconds:
-    const interval = setInterval(fetchNotifications, 10000);
+    //poll every 2 seconds:
+    const interval = setInterval(fetchNotifications, 2000);
     return () => clearInterval(interval);
   }, [firebaseUser]);
 

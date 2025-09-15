@@ -4,8 +4,11 @@ import { useProducts } from "@/hooks/useProducts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { QRCodeGenerator } from "@/components/QRCodeGenerator";
+import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
 
 interface Owner {
   id: string;
@@ -21,16 +24,22 @@ export default function RegisteredProductsPage() {
   const [ownersMap, setOwnersMap] = useState<Record<string, Owner[]>>({});
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editData, setEditData] = useState<any>({});
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch owners for each product
   useEffect(() => {
     if (!products) return;
     const fetchOwners = async () => {
-      const map: Record<string, Owner[]> = {};
-      for (const product of products) {
+      const promises = products.map(async (product) => {
         const res = await fetch(`/api/products/${product.id}/owners`);
-        map[product.id] = await res.json();
-      }
+        const owners = await res.json();
+        return { productId: product.id, owners };
+      });
+      const results = await Promise.all(promises);
+      const map: Record<string, Owner[]> = {};
+      results.forEach(({ productId, owners }) => {
+        map[productId] = owners;
+      });
       setOwnersMap(map);
     };
     fetchOwners();
@@ -75,6 +84,16 @@ export default function RegisteredProductsPage() {
     );
   }
 
+  const filteredProducts =
+    products?.filter((product) => {
+      const query = searchQuery.toLowerCase();
+      return (
+        product.name.toLowerCase().includes(query) ||
+        product.category.toLowerCase().includes(query) ||
+        product.farmName.toLowerCase().includes(query)
+      );
+    }) || [];
+
   return (
     <>
       <NavigationHeader />
@@ -88,6 +107,14 @@ export default function RegisteredProductsPage() {
           {user?.role === "retailer" &&
             "Here are all the products you have registered as a retailer."}
         </p>
+        <div className="mb-4 px-8">
+          <Input
+            type="text"
+            placeholder="Search products by name, category, or farm..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
         {isLoading && (
           <div className="text-center text-muted-foreground">
             Loading products...
@@ -98,13 +125,21 @@ export default function RegisteredProductsPage() {
             Failed to load products.
           </div>
         )}
-        {!isLoading && !isError && products?.length === 0 && (
+        {!isLoading &&
+          !isError &&
+          filteredProducts.length === 0 &&
+          searchQuery && (
+            <div className="bg-muted p-4 rounded-lg text-center text-muted-foreground">
+              No products match your search.
+            </div>
+          )}
+        {!isLoading && !isError && products?.length === 0 && !searchQuery && (
           <div className="bg-muted p-4 rounded-lg text-center text-muted-foreground">
             No products registered yet.
           </div>
         )}
         <div className="space-y-6">
-          {products?.map((product) => {
+          {filteredProducts.map((product) => {
             const owners = ownersMap[product.id] || [];
             const currentOwner = owners.find((o) => o.ownerId === user?.id);
             const canEditFields = currentOwner?.canEditFields || [];
@@ -217,34 +252,41 @@ export default function RegisteredProductsPage() {
                       </ul>
                     </div>
 
-                    {/* Edit/Save Buttons */}
-                    {currentOwner && canEditFields.length > 0 && (
-                      <div className="flex gap-2 mt-4">
-                        {editingProductId === product.id ? (
-                          <>
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 mt-4">
+                      <Link href={`/product/${product.id}?from=registered-products`}>
+                        <Button size="sm" variant="outline">
+                          View Details
+                        </Button>
+                      </Link>
+                      {currentOwner && canEditFields.length > 0 && (
+                        <>
+                          {editingProductId === product.id ? (
+                            <>
+                              <button
+                                className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700"
+                                onClick={() => handleEditSave(product.id)}
+                              >
+                                Save
+                              </button>
+                              <button
+                                className="px-3 py-1 rounded bg-gray-400 text-white hover:bg-gray-500"
+                                onClick={() => setEditingProductId(null)}
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
                             <button
-                              className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700"
-                              onClick={() => handleEditSave(product.id)}
+                              className="px-3 py-1 rounded bg-yellow-500 text-white hover:bg-yellow-600"
+                              onClick={() => handleEdit(product)}
                             >
-                              Save
+                              Edit
                             </button>
-                            <button
-                              className="px-3 py-1 rounded bg-gray-400 text-white hover:bg-gray-500"
-                              onClick={() => setEditingProductId(null)}
-                            >
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            className="px-3 py-1 rounded bg-yellow-500 text-white hover:bg-yellow-600"
-                            onClick={() => handleEdit(product)}
-                          >
-                            Edit
-                          </button>
-                        )}
-                      </div>
-                    )}
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
