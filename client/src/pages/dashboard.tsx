@@ -4,26 +4,55 @@ import { RecentProducts } from "@/components/RecentProducts";
 import { QuickActionsPanel } from "@/components/QuickActionsPanel";
 import { SupplyChainMap } from "@/components/SupplyChainMap";
 import { ProductRegistrationForm } from "@/components/ProductRegistrationForm";
+import { DistributorProductForm } from "../components/DistributorProductForm";
+import { RetailerProductForm } from "../components/RetailerProductForm";
 import { RoleSelection } from "@/components/RoleSelection";
 import { RoleDashboard } from "@/components/RoleDashboard";
 import { Button } from "@/components/ui/button";
-import React, { useState, useEffect } from "react";
+import { QrCode, Plus } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { QrCode, Plus } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
 
 export default function Dashboard() {
   const { user, loading, refreshUser } = useAuth();
-  const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+  const [activeForm, setActiveForm] = useState<"farmer" | "distributor" | "retailer" | null>(null);
   const [showRoleSelection, setShowRoleSelection] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null); // Ref to scroll to form
   const [, navigate] = useLocation();
 
-  // Check if user needs role selection
+  // Show role selection if role not chosen
   useEffect(() => {
     if (user && !user.roleSelected) {
       setShowRoleSelection(true);
     }
   }, [user]);
+
+  // Scroll to form when it becomes active
+  useEffect(() => {
+    if (activeForm) {
+      formRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [activeForm]);
+
+  // Handle register product button click
+  const handleRegisterProduct = () => {
+    if (!user) return;
+
+    if (user.role === "farmer") {
+      setActiveForm("farmer");
+    } else if (user.role === "distributor") {
+      setActiveForm("distributor");
+    } else if (user.role === "retailer") {
+      setActiveForm("retailer");
+    }
+  };
+
+  // Close the currently open form
+  const handleCloseForm = () => {
+    setActiveForm(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   if (loading) {
     return (
@@ -40,23 +69,21 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background font-sans">
-      {/* Make Navbar sticky on top */}
       <NavigationHeader />
 
-      {/* Add padding top to avoid content hidden behind sticky navbar */}
       <main className="pt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Role-based dashboard header (if role selected) */}
+        {/* Dashboard header based on role */}
         {user?.roleSelected && (
           <div className="mb-8">
             <RoleDashboard
               user={user}
-              onRegisterProduct={() => setShowRegistrationForm(true)}
+              onRegisterProduct={handleRegisterProduct}
               onScanQR={() => (window.location.href = "/qr-scanner")}
             />
           </div>
         )}
 
-        {/* Quick Actions Header - Only show when user doesn't have role selected */}
+        {/* Quick actions for users without selected role */}
         {!user?.roleSelected && (
           <div className="mb-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -81,7 +108,7 @@ export default function Dashboard() {
                 </Link>
                 {user ? (
                   <Button
-                    onClick={() => setShowRegistrationForm(true)}
+                    onClick={handleRegisterProduct}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 shadow-sm"
                     data-testid="button-register-product"
                   >
@@ -98,30 +125,41 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Stats Overview Cards */}
+        {/* Stats Overview */}
         <StatsOverview />
 
+        {/* Grid sections */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Recent Products Section */}
           <RecentProducts />
-
-          {/* QR Scanner & Quick Actions */}
           <QuickActionsPanel />
         </div>
 
-        {/* Supply Chain Map Section */}
+        {/* Supply Chain Map */}
         <div className="mt-8">
           <SupplyChainMap />
         </div>
 
-        {/* Product Registration Form */}
-        <ProductRegistrationForm
-          isVisible={showRegistrationForm}
-          onClose={() => {
-            setShowRegistrationForm(false);
-            window.scrollTo(0, 0);
-          }}
-        />
+        {/* Forms Section */}
+        <div ref={formRef} className="mt-8">
+          {activeForm === "farmer" && (
+            <ProductRegistrationForm
+              isVisible={true}
+              onClose={handleCloseForm}
+            />
+          )}
+          {activeForm === "distributor" && (
+            <DistributorProductForm
+              isVisible={true}
+              onClose={handleCloseForm}
+            />
+          )}
+          {activeForm === "retailer" && (
+            <RetailerProductForm
+              isVisible={true}
+              onClose={handleCloseForm}
+            />
+          )}
+        </div>
 
         {/* Role Selection Modal */}
         <RoleSelection

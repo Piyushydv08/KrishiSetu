@@ -156,7 +156,7 @@ export function ProductRegistrationForm({
         name: data.name,
         category: data.category,
         description: data.description || "",
-        quantity: Number(data.quantity),
+        quantity: data.quantity, // keep as string
         unit: data.unit,
         farmName: data.farmName,
         location: data.location,
