@@ -79,32 +79,32 @@ export function RoleDashboard({
   const stats = mockStats[role as keyof typeof mockStats] || mockStats.farmer;
 
   const renderFarmerDashboard = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       {/* Active Harvests */}
-      <Card className="col-span-1">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sprout className="h-5 w-5 text-primary" />
+      <Card className="col-span-1 overflow-hidden">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <Sprout className="h-4 w-4 md:h-5 md:w-5 text-primary" />
             Active Harvests
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Organic Tomatoes</span>
-              <Badge variant="outline" className="bg-primary/10 text-primary">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-sm truncate">Organic Tomatoes</span>
+              <Badge variant="outline" className="bg-primary/10 text-primary text-xs whitespace-nowrap flex-shrink-0">
                 Ready in 5 days
               </Badge>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Sweet Corn</span>
-              <Badge variant="outline" className="bg-warning/10 text-warning">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-sm truncate">Sweet Corn</span>
+              <Badge variant="outline" className="bg-warning/10 text-warning text-xs whitespace-nowrap flex-shrink-0">
                 Harvesting
               </Badge>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Bell Peppers</span>
-              <Badge variant="outline" className="bg-accent/10 text-accent">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-sm truncate">Bell Peppers</span>
+              <Badge variant="outline" className="bg-accent/10 text-accent text-xs whitespace-nowrap flex-shrink-0">
                 Growing
               </Badge>
             </div>
@@ -113,19 +113,19 @@ export function RoleDashboard({
       </Card>
 
       {/* Certifications */}
-      <Card className="col-span-1">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-verified" />
+      <Card className="col-span-1 overflow-hidden">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <Shield className="h-4 w-4 md:h-5 md:w-5 text-verified" />
             Certifications
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
+        <CardContent className="pt-0">
+          <div className="flex flex-col gap-2 md:space-y-2">
             {(stats as any).certifications.map((cert: string) => (
               <Badge
                 key={cert}
-                className="bg-verified text-white w-full justify-center"
+                className="bg-verified text-white justify-center text-xs md:text-sm py-1"
               >
                 {cert}
               </Badge>
@@ -137,43 +137,43 @@ export function RoleDashboard({
   );
 
   const renderDistributorDashboard = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       {/* Active Routes */}
-      <Card className="col-span-1">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-accent" />
+      <Card className="col-span-1 overflow-hidden">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <MapPin className="h-4 w-4 md:h-5 md:w-5 text-accent" />
             Active Routes
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Route A: Farm → Warehouse</span>
-              <Badge className="bg-verified text-white">In Transit</Badge>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-sm truncate">Farm → Warehouse</span>
+              <Badge className="bg-verified text-white text-xs whitespace-nowrap flex-shrink-0">In Transit</Badge>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Route B: Warehouse → Market</span>
-              <Badge className="bg-warning text-white">Loading</Badge>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-sm truncate">Warehouse → Market</span>
+              <Badge className="bg-warning text-white text-xs whitespace-nowrap flex-shrink-0">Loading</Badge>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Route C: Market → Store</span>
-              <Badge className="bg-accent text-white">Scheduled</Badge>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-sm truncate">Market → Store</span>
+              <Badge className="bg-accent text-white text-xs whitespace-nowrap flex-shrink-0">Scheduled</Badge>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Alerts */}
-      <Card className="col-span-1">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-warning" />
+      <Card className="col-span-1 overflow-hidden">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <AlertTriangle className="h-4 w-4 md:h-5 md:w-5 text-warning" />
             Alerts
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground">
+        <CardContent className="pt-0">
+          <div className="text-sm text-muted-foreground break-words">
             {(stats as any).alerts}
           </div>
         </CardContent>
@@ -182,33 +182,33 @@ export function RoleDashboard({
   );
 
   const renderRetailerDashboard = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       {/* Top Categories */}
-      <Card className="col-span-1">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Store className="h-5 w-5 text-accent" />
+      <Card className="col-span-1 overflow-hidden">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <Store className="h-4 w-4 md:h-5 md:w-5 text-accent" />
             Top Categories
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <div className="space-y-3">
             {(stats as any).topCategories.map(
               (category: string, index: number) => (
                 <div
                   key={category}
-                  className="flex items-center justify-between"
+                  className="flex items-center justify-between gap-2"
                 >
-                  <span className="font-medium">{category}</span>
+                  <span className="font-medium text-sm truncate">{category}</span>
                   <Badge
                     variant="outline"
-                    className={
+                    className={`text-xs whitespace-nowrap flex-shrink-0 ${
                       index === 0
                         ? "bg-primary/10 text-primary"
                         : index === 1
                         ? "bg-verified/10 text-verified"
                         : "bg-accent/10 text-accent"
-                    }
+                    }`}
                   >
                     Best Seller
                   </Badge>
@@ -220,15 +220,15 @@ export function RoleDashboard({
       </Card>
 
       {/* Promotion */}
-      <Card className="col-span-1">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-warning" />
+      <Card className="col-span-1 overflow-hidden">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-warning" />
             Active Promotion
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground">
+        <CardContent className="pt-0">
+          <div className="text-sm text-muted-foreground break-words">
             {(stats as any).promotion}
           </div>
         </CardContent>
@@ -237,23 +237,23 @@ export function RoleDashboard({
   );
 
   const renderConsumerDashboard = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       {/* Favorite Origins */}
-      <Card className="col-span-1">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
+      <Card className="col-span-1 overflow-hidden">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <Users className="h-4 w-4 md:h-5 md:w-5 text-primary" />
             Favorite Origins
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <div className="space-y-3">
             {(stats as any).favoriteOrigins.map((origin: string) => (
-              <div key={origin} className="flex items-center justify-between">
-                <span className="font-medium">{origin}</span>
+              <div key={origin} className="flex items-center justify-between gap-2">
+                <span className="font-medium text-sm truncate">{origin}</span>
                 <Badge
                   variant="outline"
-                  className="bg-verified/10 text-verified"
+                  className="bg-verified/10 text-verified text-xs whitespace-nowrap flex-shrink-0"
                 >
                   Trusted
                 </Badge>
@@ -264,15 +264,15 @@ export function RoleDashboard({
       </Card>
 
       {/* Impact */}
-      <Card className="col-span-1">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Leaf className="h-5 w-5 text-primary" />
+      <Card className="col-span-1 overflow-hidden">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <Leaf className="h-4 w-4 md:h-5 md:w-5 text-primary" />
             Impact
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground">
+        <CardContent className="pt-0">
+          <div className="text-sm text-muted-foreground break-words">
             {(stats as any).impactReduction}
           </div>
         </CardContent>
@@ -283,15 +283,15 @@ export function RoleDashboard({
   const getRoleIcon = () => {
     switch (role) {
       case "farmer":
-        return <Sprout className="w-5 h-5" />;
+        return <Sprout className="w-4 h-4 md:w-5 md:h-5" />;
       case "distributor":
-        return <Truck className="w-5 h-5" />;
+        return <Truck className="w-4 h-4 md:w-5 md:h-5" />;
       case "retailer":
-        return <Store className="w-5 h-5" />;
+        return <Store className="w-4 h-4 md:w-5 md:h-5" />;
       case "consumer":
-        return <Users className="w-5 h-5" />;
+        return <Users className="w-4 h-4 md:w-5 md:h-5" />;
       default:
-        return <Sprout className="w-5 h-5" />;
+        return <Sprout className="w-4 h-4 md:w-5 md:h-5" />;
     }
   };
 
@@ -326,16 +326,16 @@ export function RoleDashboard({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Role Header */}
-      <Card className="border-l-4 border-l-primary">
-        <CardHeader>
+      <Card className="border-l-4 border-l-primary overflow-hidden">
+        <CardHeader className="pb-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               {getRoleIcon()}
               <div>
-                <CardTitle className="text-xl">{getRoleTitle()}</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
+                <CardTitle className="text-lg md:text-xl">{getRoleTitle()}</CardTitle>
+                <p className="text-xs md:text-sm text-muted-foreground mt-1">
                   {getRoleDescription()}
                 </p>
               </div>
@@ -346,9 +346,10 @@ export function RoleDashboard({
                   <Button
                     onClick={onRegisterProduct}
                     data-testid="button-register-product"
-                    className="w-full sm:w-auto"
+                    className="w-full sm:w-auto text-xs md:text-sm py-1 h-9 md:h-10"
+                    size="sm"
                   >
-                    <Package className="w-4 h-4 mr-2" />
+                    <Package className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                     Register Product
                   </Button>
                 )}
@@ -357,9 +358,10 @@ export function RoleDashboard({
                   variant="outline"
                   onClick={onScanQR}
                   data-testid="button-scan-qr"
-                  className="w-full sm:w-auto"
+                  className="w-full sm:w-auto text-xs md:text-sm py-1 h-9 md:h-10"
+                  size="sm"
                 >
-                  <CheckCircle className="w-4 h-4 mr-2" />
+                  <CheckCircle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                   Scan QR
                 </Button>
               )}
@@ -370,7 +372,7 @@ export function RoleDashboard({
       
       {/* Ownership Management Panel - Show for roles that can transfer ownership */}
       {(role === "farmer" || role === "distributor" || role === "retailer") && (
-        <div className="mb-6">
+        <div className="mb-4 md:mb-6">
           <OwnershipManagementPanel />
         </div>
       )}
