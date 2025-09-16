@@ -27,7 +27,6 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
   const { data: products, isLoading } = useProducts(user?.id);
   const [selectedProductId, setSelectedProductId] = useState<string>(productId || '');
   const [journeySteps, setJourneySteps] = useState<JourneyStep[]>([]);
-  const [showPlaceholder, setShowPlaceholder] = useState(true);
   
   // Find the selected product
   const selectedProduct = products?.find(p => p.id === selectedProductId);
@@ -35,15 +34,23 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
   // Update journey steps when selected product changes
   useEffect(() => {
     if (selectedProduct) {
-      console.log('Selected product:', selectedProduct);
+      console.log('Selected product data:', selectedProduct);
       
-      // Get farm data from the selected product - use correct field names
-      const farmLocation = (selectedProduct as any)?.location?.trim() || 'Haryana';
-      const farmName = (selectedProduct as any)?.farmName?.trim() || 'Sunny Acres Farm';
+      // Get farm data from the selected product
+      const farmLocation = selectedProduct.location?.trim() || 'Haryana';
+      const farmName = selectedProduct.farmName?.trim() || 'Sunny Acres Farm';
       
-      console.log('Farm location:', farmLocation);
-      console.log('Farm name:', farmName);
+      // Get distributor data from the selected product
+      const distributorName = selectedProduct.distributorName?.trim() || 'Fresh Pack Co.';
+      const distributorLocation = selectedProduct.warehouseLocation?.trim() || 'Chandigarh';
       
+      // Get retailer data from the selected product
+      const retailerName = selectedProduct.storeName?.trim() || 'Green Market';
+      const retailerLocation = selectedProduct.storeLocation?.trim() || 'Bangalore';
+      
+      console.log('Retailer data from product:', { retailerName, retailerLocation });
+      
+      // Corrected journey steps with retailer in the proper position
       const updatedJourneySteps: JourneyStep[] = [
         { 
           id: '1', 
@@ -57,8 +64,8 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
         },
         { 
           id: '2', 
-          name: 'Fresh Pack Co.', 
-          location: 'Chandigarh', 
+          name: distributorName, 
+          location: distributorLocation, 
           date: 'Jan 12', 
           status: 'Processed', 
           icon: Factory, 
@@ -67,33 +74,36 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
         },
         { 
           id: '3', 
-          name: 'Central Distribution', 
-          location: 'Delhi', 
+          name: retailerName, // Retailer name goes here
+          location: retailerLocation, // Retailer location goes here
           date: 'Jan 14', 
-          status: 'Shipped', 
-          icon: Warehouse, 
-          bgColor: 'bg-warning', 
-          textColor: 'text-white'
+          status: 'Available at Store', 
+          icon: Store, // Using Store icon for retailer
+          bgColor: 'bg-secondary', 
+          textColor: 'text-secondary-foreground'
         },
         { 
           id: '4', 
-          name: 'Green Market', 
-          location: 'Bangalore', 
+          name: 'Consumer', 
+          location: 'Bengaluru', // Fixed to Bengaluru
           date: 'Jan 16', 
-          status: 'Delivering', 
-          icon: Store, 
-          bgColor: 'bg-secondary', 
-          textColor: 'text-secondary-foreground'
+          status: 'Purchased', 
+          icon: Warehouse, // Using Warehouse icon for consumer
+          bgColor: 'bg-warning', 
+          textColor: 'text-white'
         }
       ];
       
       setJourneySteps(updatedJourneySteps);
-      setShowPlaceholder(false);
     } else if (products && products.length > 0) {
       // If no product is selected, use the first product
       const firstProduct = products[0];
-      const farmLocation = (firstProduct as any)?.location?.trim() || 'Haryana';
-      const farmName = (firstProduct as any)?.farmName?.trim() || 'Sunny Acres Farm';
+      const farmLocation = firstProduct.location?.trim() || 'Haryana';
+      const farmName = firstProduct.farmName?.trim() || 'Sunny Acres Farm';
+      const distributorName = firstProduct.distributorName?.trim() || 'Fresh Pack Co.';
+      const distributorLocation = firstProduct.warehouseLocation?.trim() || 'Chandigarh';
+      const retailerName = firstProduct.storeName?.trim() || 'Green Market';
+      const retailerLocation = firstProduct.storeLocation?.trim() || 'Bangalore';
       
       const updatedJourneySteps: JourneyStep[] = [
         { 
@@ -108,8 +118,8 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
         },
         { 
           id: '2', 
-          name: 'Fresh Pack Co.', 
-          location: 'Chandigarh', 
+          name: distributorName, 
+          location: distributorLocation, 
           date: 'Jan 12', 
           status: 'Processed', 
           icon: Factory, 
@@ -118,45 +128,35 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
         },
         { 
           id: '3', 
-          name: 'Central Distribution', 
-          location: 'Delhi', 
+          name: retailerName, // Retailer name
+          location: retailerLocation, // Retailer location
           date: 'Jan 14', 
-          status: 'Shipped', 
-          icon: Warehouse, 
-          bgColor: 'bg-warning', 
-          textColor: 'text-white'
-        },
-        { 
-          id: '4', 
-          name: 'Green Market', 
-          location: 'Bangalore', 
-          date: 'Jan 16', 
-          status: 'Delivering', 
+          status: 'Available at Store', 
           icon: Store, 
           bgColor: 'bg-secondary', 
           textColor: 'text-secondary-foreground'
+        },
+        { 
+          id: '4', 
+          name: 'Consumer', 
+          location: 'Bengaluru', // Fixed to Bengaluru
+          date: 'Jan 16', 
+          status: 'Purchased', 
+          icon: Warehouse, 
+          bgColor: 'bg-warning', 
+          textColor: 'text-white'
         }
       ];
       
       setJourneySteps(updatedJourneySteps);
-      setShowPlaceholder(false);
     } else {
       // If no products are available, show empty state
       setJourneySteps([]);
-      setShowPlaceholder(true);
     }
   }, [selectedProduct, products]);
 
-  // Set initial product ID when products load
-  useEffect(() => {
-    if (products && products.length > 0 && !selectedProductId) {
-      setSelectedProductId(products[0].id);
-      setShowPlaceholder(false);
-    }
-  }, [products, selectedProductId]);
-
   const journeyStats = {
-    verifiedStages: 4,
+    verifiedStages: journeySteps.length, // Dynamic based on actual steps
     totalDistance: '2,100 km',
     journeyTime: '6 days',
     avgTemperature: '28°C'
@@ -175,7 +175,7 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
     
     // Create origin and destination
     const origin = journeySteps[0].location;
-    const destination = journeySteps[journeySteps.length - 1].location;
+    const destination = journeySteps[journeySteps.length - 1].location; // This will be Bengaluru
     
     if (!origin || !destination) return;
     
@@ -213,14 +213,13 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
             onValueChange={(value) => {
               console.log('Product selected:', value);
               setSelectedProductId(value);
-              setShowPlaceholder(false);
             }}
           >
             <SelectTrigger className="w-full sm:w-64">
-              {showPlaceholder ? (
-                <span className="text-muted-foreground">Select a product</span>
-              ) : (
+              {selectedProductId ? (
                 <SelectValue placeholder="Select a product" />
+              ) : (
+                <span className="text-muted-foreground">Select a product</span>
               )}
             </SelectTrigger>
             <SelectContent>
