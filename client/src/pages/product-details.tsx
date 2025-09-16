@@ -1,3 +1,8 @@
+// src/pages/product/[id].tsx
+// (this is your existing ProductDetails implementation with events fetch)
+// kept mostly the same — server now logs product events when the transfer+registration completes,
+// so the timeline will show "accepted ownership / new owner added" automatically.
+
 import { useEffect, useState } from "react";
 import { useParams } from "wouter";
 import { NavigationHeader } from "@/components/NavigationHeader";
@@ -50,6 +55,8 @@ export default function ProductDetails() {
         if (res.ok) {
           const data = await res.json();
           setEvents(data);
+        } else {
+          setEvents([]);
         }
       } catch (e) {
         setEvents([]);
@@ -57,6 +64,10 @@ export default function ProductDetails() {
       setEventsLoading(false);
     }
     fetchEvents();
+
+    // optional: poll events every 5s for near-real-time update (adjust if needed)
+    const interval = setInterval(fetchEvents, 5000);
+    return () => clearInterval(interval);
   }, [productId]);
   // --------------------------------------------
 
