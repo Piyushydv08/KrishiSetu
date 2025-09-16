@@ -574,33 +574,8 @@ app.put("/api/ownership-transfers/:id/accept", upload.single("paymentProof"), as
     // 1) Update transfer status -> completed
     await storage.updateOwnershipTransfer(transferId, { status: "completed" });
 
-    // 2) Update/merge product fields from productData if provided
-    const fieldsToUpdate: any = {};
-    if (productData && typeof productData === "object") {
-      // allow list of updatable fields
-      const allowed = [
-        "name",
-        "category",
-        "description",
-        "quantity",
-        "unit",
-        "distributorName",
-        "warehouseLocation",
-        "dispatchDate",
-        "certifications",
-        "storeName",
-        "storeLocation",
-        "arrivalDate",
-      ];
-      for (const k of Object.keys(productData)) {
-        if (allowed.includes(k)) {
-          fieldsToUpdate[k] = productData[k];
-        }
-      }
-    }
-
-    // 3) Update product owner + fields
-    await storage.updateProduct(product.id, { ownerId: user.id, ...fieldsToUpdate }, );
+    // 2) Update product with the filled fields
+    await storage.updateProduct(product.id, { ownerId: user.id, ...filledFields });
 
     // 3) Add to product owners blockchain
     const newOwnerBlock = await storage.addProductOwner(

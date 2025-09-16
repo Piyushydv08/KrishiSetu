@@ -38,10 +38,10 @@ export default function Dashboard() {
   // Handle register product button click
   const handleRegisterProduct = () => {
     if (!user) return;
-
     if (user.role === "farmer") {
       setActiveForm("farmer");
-    } else if (user.role === "distributor") {
+    }
+    else if (user.role === "distributor") {
       setActiveForm("distributor");
     } else if (user.role === "retailer") {
       setActiveForm("retailer");
@@ -106,7 +106,8 @@ export default function Dashboard() {
                     Scan QR Code
                   </Button>
                 </Link>
-                {user ? (
+                {/* Only show register product for farmers */}
+                {user && user.role === "farmer" && (
                   <Button
                     onClick={handleRegisterProduct}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 shadow-sm"
@@ -115,7 +116,8 @@ export default function Dashboard() {
                     <Plus className="w-4 h-4" />
                     Register Product
                   </Button>
-                ) : (
+                )}
+                {!user && (
                   <div className="bg-gradient-to-r from-primary/20 to-accent/20 text-foreground rounded-md px-3 py-2 text-sm flex items-center gap-1 shadow-sm border border-primary/20">
                     📝 Want to register a product? Log in first to continue.
                   </div>
@@ -140,36 +142,64 @@ export default function Dashboard() {
         </div>
 
         {/* Forms Section */}
-        <div ref={formRef} className="mt-8">
-          {activeForm === "farmer" && (
-            <ProductRegistrationForm
-              isVisible={true}
-              onClose={handleCloseForm}
-            />
-          )}
-          {activeForm === "distributor" && (
-            <DistributorProductForm
-              isVisible={true}
-              onClose={handleCloseForm}
-            />
-          )}
-          {activeForm === "retailer" && (
-            <RetailerProductForm
-              isVisible={true}
-              onClose={handleCloseForm}
-            />
-          )}
-        </div>
 
-        {/* Role Selection Modal */}
-        <RoleSelection
-          isVisible={showRoleSelection}
-          onRoleSelected={async () => {
-            setShowRoleSelection(false);
-            await refreshUser();
-          }}
-        />
+        {/* Floating Modal for Farmer */}
+        {activeForm === "farmer" && (
+          <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-auto">
+            <div
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={handleCloseForm}
+            />
+            <div className="relative mt-12 mb-12 mx-4 max-h-[90vh] w-full max-w-4xl overflow-auto rounded-lg bg-white p-6 shadow-2xl z-[121]">
+              <ProductRegistrationForm
+                isVisible={true}
+                onClose={handleCloseForm}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Floating Modal for Distributor */}
+        {activeForm === "distributor" && (
+          <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-auto">
+            <div
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={handleCloseForm}
+            />
+            <div className="relative mt-12 mb-12 mx-4 max-h-[90vh] w-full max-w-4xl overflow-auto rounded-lg bg-white p-6 shadow-2xl z-[121]">
+              <DistributorProductForm
+                isVisible={true}
+                onClose={handleCloseForm}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Floating Modal for Retailer */}
+        {activeForm === "retailer" && (
+          <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-auto">
+            <div
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={handleCloseForm}
+            />
+            <div className="relative mt-12 mb-12 mx-4 max-h-[90vh] w-full max-w-4xl overflow-auto rounded-lg bg-white p-6 shadow-2xl z-[121]">
+              <RetailerProductForm
+                isVisible={true}
+                onClose={handleCloseForm}
+              />
+            </div>
+          </div>
+        )}
       </main>
+
+      {/* Role Selection Modal */}
+      <RoleSelection
+        isVisible={showRoleSelection}
+        onRoleSelected={async () => {
+          setShowRoleSelection(false);
+          await refreshUser();
+        }}
+      />
     </div>
   );
 }

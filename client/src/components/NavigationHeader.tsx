@@ -498,13 +498,10 @@ export function NavigationHeader() {
 
       {/* Modal overlays (fixed, centered) */}
       {(showDistributorForm || showRetailerForm) && (
-        <div
-          aria-hidden={false}
-          className="fixed inset-0 z-[120] flex items-start justify-center"
-        >
+        <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-auto">
           {/* backdrop with blur and semi-opaque dark layer */}
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => {
               // clicking backdrop cancels forms (keep behavior consistent)
               setShowDistributorForm(false);
@@ -513,9 +510,9 @@ export function NavigationHeader() {
               setCurrentTransferForForm(null);
             }}
           />
-
+          
           {/* modal panel — will not shift page content; centered, scrollable if tall */}
-          <div className="relative mt-12 max-h-[90vh] w-full max-w-4xl overflow-auto rounded-lg bg-white p-6 shadow-2xl">
+          <div className="relative mt-12 mb-12 mx-4 max-h-[90vh] w-full max-w-4xl overflow-auto rounded-lg bg-white p-6 shadow-2xl z-[121]">
             {showDistributorForm && currentTransferForForm && (
               <DistributorProductForm
                 isVisible={true}
