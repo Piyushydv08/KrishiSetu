@@ -242,6 +242,7 @@ export class MongoStorage {
       batchId,
       qrCode,
       blockchainHash,
+      price: insertProduct.price || null, // Add price handling
       createdAt
     };
     await db.collection<Product>("products").insertOne(product);

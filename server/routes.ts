@@ -2,14 +2,26 @@ import { Express, Request, Response } from "express";
 import { createServer } from "http";
 import { MongoStorage, getDb } from "./storage";
 import { z } from "zod";
+import multer from "multer";
+import path from "path";
 import {
   insertUserSchema, insertProductSchema, insertTransactionSchema,
   insertQualityCheckSchema, insertScanSchema, insertOwnershipTransferSchema,
   insertNotificationSchema, insertProductOwnerSchema, insertProductCommentSchema
 } from "@shared/schema";
-
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 // Initialize MongoDB storage
 const storage = new MongoStorage();
+const upload = multer({
+  dest: path.join(__dirname, "../uploads/payment-proofs"),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+// Add these lines at the top of your file (after imports)
+
 
 export async function registerRoutes(app: Express) {
   // --- Authentication Routes ---
@@ -193,7 +205,7 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
         name: user.name,
         addedBy: user.id,
         role: user.role,
-        canEditFields: ["quantity", "location", "description", "certifications"],
+        canEditFields: ["quantity", "location", "description", "certifications", "price"],
         transferType: "initial",
         createdAt: new Date()
       });
@@ -475,7 +487,7 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
  *  - headers: firebase-uid (or x-firebase-uid)
  *  - body: { productData?: {...}, productId?: string }
  */
-app.put("/api/ownership-transfers/:id/accept", async (req: Request, res: Response) => {
+app.put("/api/ownership-transfers/:id/accept", upload.single("paymentProof"), async (req: Request, res: Response) => {
   const transferId = req.params.id;
   const firebaseUid = req.header("firebase-uid") || req.header("x-firebase-uid");
 
@@ -483,10 +495,53 @@ app.put("/api/ownership-transfers/:id/accept", async (req: Request, res: Respons
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  const { productData, productId: optionalProductId } = req.body || {};
+  // Extract all form data
+  const formData = { ...req.body };
 
-  let session: any = null;
-  let usingTransaction = false;
+  // Define all possible form fields that might be submitted
+  const possibleFormFields = [
+    "name", "category", "description", "quantity", "unit",
+    "distributorName", "warehouseLocation", "dispatchDate", 
+    "certifications", "price", "paymentProofUrl",
+    "storeName", "storeLocation", "arrivalDate"
+  ];
+
+  // Create an object to store the actual filled fields
+  const filledFields: Record<string, any> = {};
+  const registeredFields: string[] = [];
+
+  // Check which fields were actually filled
+  for (const field of possibleFormFields) {
+    if (formData[field] !== undefined && formData[field] !== null && formData[field] !== "") {
+      filledFields[field] = formData[field];
+      registeredFields.push(field);
+    }
+  }
+
+  // Parse certifications if sent as JSON string
+  if (filledFields.certifications && typeof filledFields.certifications === "string") {
+    try {
+      filledFields.certifications = JSON.parse(filledFields.certifications);
+    } catch (e) {
+      console.error("Error parsing certifications:", e);
+    }
+  }
+
+  // Parse numbers if needed
+  if (filledFields.price && typeof filledFields.price === "string" && !isNaN(Number(filledFields.price))) {
+    filledFields.price = Number(filledFields.price);
+  }
+  if (filledFields.quantity && typeof filledFields.quantity === "string" && !isNaN(Number(filledFields.quantity))) {
+    filledFields.quantity = Number(filledFields.quantity);
+  }
+
+  // If you handle paymentProof file upload, set paymentProofUrl here
+  if (req.file && req.file.filename) {
+    filledFields.paymentProofUrl = `/uploads/payment-proofs/${req.file.filename}`;
+    if (!registeredFields.includes("paymentProofUrl")) {
+      registeredFields.push("paymentProofUrl");
+    }
+  }
 
   try {
     const user = await storage.getUserByFirebaseUid(firebaseUid);
@@ -516,41 +571,16 @@ app.put("/api/ownership-transfers/:id/accept", async (req: Request, res: Respons
       });
     }
 
-    // Start transaction if storage supports it
-    
-
     // 1) Update transfer status -> completed
     await storage.updateOwnershipTransfer(transferId, { status: "completed" });
 
-    // 2) Update/merge product fields from productData if provided
-    const fieldsToUpdate: any = {};
-    if (productData && typeof productData === "object") {
-      // allow list of updatable fields
-      const allowed = [
-        "name",
-        "category",
-        "description",
-        "quantity",
-        "unit",
-        "distributorName",
-        "warehouseLocation",
-        "dispatchDate",
-        "certifications",
-        "storeName",
-        "storeLocation",
-        "arrivalDate",
-      ];
-      for (const k of Object.keys(productData)) {
-        if (allowed.includes(k)) {
-          fieldsToUpdate[k] = productData[k];
-        }
-      }
-    }
+    // 2) Update product with the filled fields
+    await storage.updateProduct(product.id, { 
+      ownerId: user.id, 
+      ...filledFields 
+    });
 
-    // 3) Update product owner + fields
-    await storage.updateProduct(product.id, { ownerId: user.id, ...fieldsToUpdate }, );
-
-    // 4) Add to product owners blockchain
+    // 3) Add to product owners blockchain
     const newOwnerBlock = await storage.addProductOwner(
       {
         productId: product.id,
@@ -565,7 +595,7 @@ app.put("/api/ownership-transfers/:id/accept", async (req: Request, res: Respons
       }
     );
 
-    // 5) Create notification for previous owner
+    // 4) Create notification for previous owner
     await storage.createNotification(
       {
         userId: transfer.fromUserId,
@@ -578,25 +608,27 @@ app.put("/api/ownership-transfers/:id/accept", async (req: Request, res: Respons
         createdAt: new Date(),
       }
     );
-
-    // 6) Log product event (timeline) - visible on product details
+    
+    // Fetch previous owner info
+    const previousOwner = await storage.getUser(transfer.fromUserId);
+    
+    // In your backend endpoint, update the logProductEvent call:
     await storage.logProductEvent(
       product.id,
-      "ownership_transfer",
-      `${user.name} (${user.role}) accepted ownership and registered product details.`,
+      "ownership_registration",
+      `${user.name} (${user.role}) registered product details.`,
       user.id,
       {
         transferId: transfer.id,
-        previousOwnerId: transfer.fromUserId,
-        newOwnerId: user.id,
-      },
-         );
-
-    // commit transaction if used
-    if (usingTransaction && session) {
-      await session.commitTransaction();
-      await session.endSession();
-    }
+        registrationType: user.role,
+        userName: user.username, // Store username instead of name
+        userRole: user.role,
+        previousOwnerName: previousOwner?.username || previousOwner?.name || "Unknown", // Use username if available
+        previousOwnerRole: previousOwner?.role || "Unknown",
+        registeredFields: registeredFields,
+        ...filledFields
+      }
+    );
 
     return res.json({
       message: "Ownership transfer completed successfully",
@@ -609,22 +641,39 @@ app.put("/api/ownership-transfers/:id/accept", async (req: Request, res: Respons
     });
   } catch (error) {
     console.error("Error accepting ownership transfer:", error);
-
-    // abort transaction if used
-    try {
-      if (usingTransaction && session) {
-        await session.abortTransaction();
-        await session.endSession();
-      }
-    } catch (abortErr) {
-      console.error("Failed to abort transaction:", abortErr);
-    }
-
     return res.status(500).json({ message: "Failed to accept ownership transfer" });
   }
 });
 
-
+// Debug endpoint to check form data
+app.post("/api/debug/form-data", upload.single("paymentProof"), async (req: Request, res: Response) => {
+  console.log("Headers:", req.headers);
+  console.log("Body:", req.body);
+  console.log("File:", req.file);
+  
+  // Check all possible fields
+  const possibleFields = [
+    "name", "category", "description", "quantity", "unit",
+    "distributorName", "warehouseLocation", "dispatchDate", 
+    "certifications", "price", "storeName", "storeLocation", "arrivalDate"
+  ];
+  
+  const receivedFields: Record<string, any> = {};
+  for (const field of possibleFields) {
+    if (req.body[field] !== undefined) {
+      receivedFields[field] = req.body[field];
+    }
+  }
+  
+  console.log("Received fields:", receivedFields);
+  
+  res.json({
+    headers: req.headers,
+    body: req.body,
+    file: req.file,
+    receivedFields: receivedFields
+  });
+});
 
   app.put("/api/ownership-transfers/:id/reject", async (req: Request, res: Response) => {
     try {
@@ -759,8 +808,23 @@ app.put("/api/ownership-transfers/:id/accept", async (req: Request, res: Respons
 
   app.get("/api/products/:id/owners", async (req: Request, res: Response) => {
     try {
-      const owners = await storage.getProductOwners(req.params.id);
-      return res.json(owners);
+      const productId = req.params.id;
+      const owners = await storage.getProductOwners(productId);
+
+      // Enrich with user details
+      const enrichedOwners = await Promise.all(
+        owners.map(async (owner) => {
+          const user = await storage.getUser(owner.ownerId);
+          return {
+            ...owner,
+            name: user?.name || 'Unknown',
+            email: user?.email || '',
+            role: user?.role || 'unknown'
+          };
+        })
+      );
+
+      return res.json(enrichedOwners);
     } catch (error) {
       console.error("Error fetching product owners:", error);
       return res.status(500).json({ message: "Failed to fetch product owners" });

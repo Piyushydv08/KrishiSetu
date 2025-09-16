@@ -39,6 +39,7 @@ const formSchema = insertProductSchema.extend({
   farmName: z.string().min(1, "Farm name is required"),
   location: z.string().min(1, "Location is required"),
   unit: z.string().min(1, "Unit is required"),
+  price: z.string().min(1, "Product price is required"), // <-- add this
   certifications: z.array(z.string()).default([]),
 });
 
@@ -141,6 +142,7 @@ export function ProductRegistrationForm({
       certifications: [],
       status: "registered",
       ownerId: user?.id || "",
+      price:"",
     },
   });
 
@@ -160,7 +162,7 @@ export function ProductRegistrationForm({
         name: data.name,
         category: data.category,
         description: data.description || "",
-        quantity: Number(data.quantity),
+        quantity: String(data.quantity),
         unit: data.unit,
         farmName: data.farmName,
         location: data.location,
@@ -168,6 +170,7 @@ export function ProductRegistrationForm({
         certifications: data.certifications,
         status: "registered" as const,
         ownerId: user.id,
+        price: String(data.price),
       };
 
       // Call the mutation - check if the hook expects a different parameter format
@@ -392,6 +395,28 @@ export function ProductRegistrationForm({
                         )}
                       />
                     </div>
+
+                    <FormField
+                      control={form.control}
+                      name="price"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Product Price *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Enter price"
+                              {...field}
+                              required
+                              data-testid="input-product-price"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
 
                   {/* Origin & Location */}

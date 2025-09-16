@@ -38,6 +38,8 @@ export function NavigationHeader() {
   // store the transfer id & product id for the currently-open form
   const [currentTransferForForm, setCurrentTransferForForm] = useState<{ transferId?: string; productId?: string } | null>(null);
 
+  const [productData, setProductData] = useState<any>(null);
+
   const isActiveRoute = (path: string) => location === path;
 
   // Fetch unread notifications (we keep only unread in dropdown)
@@ -99,6 +101,18 @@ export function NavigationHeader() {
       document.body.style.paddingRight = "";
     };
   }, [showDistributorForm, showRetailerForm]);
+
+  // When opening the modal, fetch product data if productId exists
+  useEffect(() => {
+    if (currentTransferForForm?.productId) {
+      fetch(`/api/products/${currentTransferForForm.productId}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => setProductData(data))
+        .catch(() => setProductData(null));
+    } else {
+      setProductData(null);
+    }
+  }, [currentTransferForForm]);
 
   if (loading) {
     return (
@@ -507,6 +521,7 @@ export function NavigationHeader() {
                 isVisible={true}
                 onClose={(res) => handleFormClose(res)}
                 transferId={currentTransferForForm.transferId}
+                productData={productData}
                 productId={currentTransferForForm.productId}
               />
             )}
@@ -515,6 +530,7 @@ export function NavigationHeader() {
                 isVisible={true}
                 onClose={(res) => handleFormClose(res)}
                 transferId={currentTransferForForm.transferId}
+                productData={productData}
                 productId={currentTransferForForm.productId}
               />
             )}

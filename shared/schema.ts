@@ -43,6 +43,7 @@ export const productSchema = z.object({
   ownerId: z.string(),
   blockchainHash: z.string().nullable().optional(),
   status: z.string().default("registered"),
+  price: z.string().nullable().optional(), // Add price field
   createdAt: z.date()
 });
 export type Product = z.infer<typeof productSchema>;
@@ -52,7 +53,8 @@ export const insertProductSchema = productSchema.omit({ id: true, createdAt: tru
   harvestDate: z.preprocess(
     (val) => (typeof val === "string" ? new Date(val) : val),
     z.date()
-  )
+  ),
+  price: z.string().nullable().optional() // Add to insert schema too
 });
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 
@@ -126,6 +128,7 @@ export const ownershipTransferSchema = z.object({
   expectedDelivery: z.date().nullable().optional(),
   actualDelivery: z.date().nullable().optional(),
   blockchainHash: z.string().nullable().optional(),
+  paymentProofUrl: z.string().nullable().optional(),
   timestamp: z.date()
 });
 export type OwnershipTransfer = z.infer<typeof ownershipTransferSchema>;

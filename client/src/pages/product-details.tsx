@@ -14,6 +14,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ProductHistory } from "@/components/ProductHistory";
+import { Product } from "@shared/schema";
+
 import {
   ArrowLeft,
   MapPin,
@@ -25,6 +28,7 @@ import {
   Truck,
   History,
   Shield,
+  DollarSign,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
@@ -36,6 +40,19 @@ interface ProductEvent {
   userId: string;
   createdAt: string;
   extra?: any;
+}
+
+// Add this interface for enhanced product data
+interface EnhancedProduct extends Product {
+  registeredBy?: string;
+  registrationType?: "farmer" | "distributor" | "retailer";
+  registrationDate?: Date;
+  priceHistory?: Array<{
+    price: string;
+    setBy: string;
+    date: Date;
+    role: string;
+  }>;
 }
 
 export default function ProductDetails() {
@@ -64,12 +81,42 @@ export default function ProductDetails() {
       setEventsLoading(false);
     }
     fetchEvents();
-
-    // optional: poll events every 5s for near-real-time update (adjust if needed)
-    const interval = setInterval(fetchEvents, 5000);
-    return () => clearInterval(interval);
   }, [productId]);
   // --------------------------------------------
+
+  // --- Enhanced product info state ---
+  const [enhancedProduct, setEnhancedProduct] = useState<EnhancedProduct | null>(
+    null
+  );
+
+  useEffect(() => {
+    async function fetchEnhancedProductData() {
+      if (!product) return;
+      try {
+        // Fetch ownership history to get who registered what
+        const ownersRes = await fetch(`/api/products/${productId}/owners`);
+        const owners = await ownersRes.json();
+
+        // Fetch product events for registration history (optional)
+        // const eventsRes = await fetch(`/api/products/${productId}/events`);
+        // const events = await eventsRes.json();
+
+        const enhanced: EnhancedProduct = {
+          ...product,
+          registeredBy: owners.length > 0 ? owners[0].name : "Unknown",
+          registrationType: owners.length > 0 ? owners[0].role : "farmer",
+        };
+        setEnhancedProduct(enhanced);
+      } catch (error) {
+        console.error("Error fetching enhanced product data:", error);
+        setEnhancedProduct(product as EnhancedProduct);
+      }
+    }
+    if (product) {
+      fetchEnhancedProductData();
+    }
+  }, [product, productId]);
+  // --- end enhanced info ---
 
   if (isLoading) {
     return (
@@ -191,7 +238,39 @@ export default function ProductDetails() {
                         </div>
                       </div>
                     </div>
+                    {enhancedProduct?.registeredBy && (
+                      <div className="flex items-start gap-3">
+                        <User className="w-5 h-5 text-muted-foreground mt-0.5" />
+                        <div>
+                          <div className="text-sm font-medium text-foreground">
+                            Registered by
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {enhancedProduct.registeredBy}
+                            {enhancedProduct.registrationType && (
+                              <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                                {enhancedProduct.registrationType}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
+                    {/* Price */}
+                    {product.price && (
+                      <div className="flex items-start gap-3">
+                        <DollarSign className="w-5 h-5 text-muted-foreground mt-0.5" />
+                        <div>
+                          <div className="text-sm font-medium text-foreground">
+                            Current Price
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            ${product.price}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-start gap-3">
                       <User className="w-5 h-5 text-muted-foreground mt-0.5" />
                       <div>
@@ -281,7 +360,7 @@ export default function ProductDetails() {
                 )}
               </CardContent>
             </Card>
-
+            <ProductHistory productId={productId} />
             {/* 2. Product Event Timeline */}
             <Card className="shadow-sm border border-border">
               <CardHeader>

@@ -1,5 +1,5 @@
 // src/components/DistributorProductForm.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,27 +9,53 @@ import { useToast } from "@/hooks/use-toast";
 
 interface DistributorProductFormProps {
   isVisible: boolean;
-  transferId?: string; // id of ownership transfer that we will accept after registration
-  productId?: string; // optional product id
+  transferId?: string;
+  productId?: string;
+  productData?: {
+    name: string;
+    category: string;
+    description?: string;
+    quantity: string;
+    unit: string;
+  };
   onClose: (result?: { submitted?: boolean; productId?: string }) => void;
 }
 
-export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({ isVisible, onClose, transferId, productId }) => {
+export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
+  isVisible,
+  onClose,
+  transferId,
+  productId,
+  productData
+}) => {
   if (!isVisible) return null;
 
   const { firebaseUser } = useAuth();
   const { toast } = useToast();
 
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
-  const [description, setDescription] = useState("");
-  const [quantity, setQuantity] = useState("");
-  const [unit, setUnit] = useState("");
+  // Initialize form fields with productData if available
+  const [name, setName] = useState(productData?.name || "");
+  const [category, setCategory] = useState(productData?.category || "");
+  const [description, setDescription] = useState(productData?.description || "");
+  const [quantity, setQuantity] = useState(productData?.quantity || "");
+  const [unit, setUnit] = useState(productData?.unit || "");
   const [distributorName, setDistributorName] = useState("");
   const [warehouseLocation, setWarehouseLocation] = useState("");
   const [dispatchDate, setDispatchDate] = useState("");
   const [certifications, setCertifications] = useState<string[]>([]);
+  const [price, setPrice] = useState("");
+  const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (productData) {
+      setName(productData.name);
+      setCategory(productData.category);
+      setDescription(productData.description || "");
+      setQuantity(productData.quantity);
+      setUnit(productData.unit);
+    }
+  }, [productData]);
 
   const toggleCertification = (cert: string) => {
     setCertifications((prev) => (prev.includes(cert) ? prev.filter((c) => c !== cert) : [...prev, cert]));
@@ -43,16 +69,18 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({ 
     if (!distributorName.trim()) return "Distributor name is required";
     if (!warehouseLocation.trim()) return "Warehouse location is required";
     if (!dispatchDate) return "Dispatch date is required";
+    if (!price.trim()) return "Product purchase price is required";
+    if (!paymentProofFile) return "Payment proof photo is required";
     if (!transferId) return "Missing transfer id";
     return null;
   };
 
   const handleSubmit = async () => {
-    // const err = validate();
-    // if (err) {
-    //   toast?.({ title: "Validation error", description: err, variant: "destructive" });
-    //   return;
-    // }
+    const err = validate();
+    if (err) {
+      toast?.({ title: "Validation error", description: err, variant: "destructive" });
+      return;
+    }
 
     if (!firebaseUser) {
       toast?.({ title: "Not authenticated", description: "Please sign in and try again.", variant: "destructive" });
@@ -64,52 +92,43 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({ 
     try {
       const idToken = await firebaseUser.getIdToken();
 
-      const payload = {
-        productData: {
-          name,
-          category,
-          description,
-          quantity,
-          unit,
-          distributorName,
-          warehouseLocation,
-          dispatchDate,
-          certifications,
-        },
-        productId,
-      };
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("category", category);
+      formData.append("description", description);
+      formData.append("quantity", quantity);
+      formData.append("unit", unit);
+      formData.append("distributorName", distributorName);
+      formData.append("warehouseLocation", warehouseLocation);
+      formData.append("dispatchDate", dispatchDate);
+      formData.append("certifications", JSON.stringify(certifications));
+      formData.append("price", price);
+      formData.append("paymentProof", paymentProofFile as Blob);
+      formData.append("productId", productId || "");
+      formData.append("transferId", transferId || "");
 
       const res = await fetch(`/api/ownership-transfers/${transferId}/accept`, {
         method: "PUT",
         headers: {
-          "Content-Type": "application/json",
           "firebase-uid": firebaseUser.uid,
           Authorization: `Bearer ${idToken}`,
+          // Do NOT set Content-Type, browser will set it for FormData
         },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
       if (!res.ok) {
-        // try to parse error body
         const body = await res.json().catch(() => null);
         const msg = body?.message || `${res.status} ${res.statusText}`;
-        if (res.status === 401 || res.status === 403) {
-          toast?.({ title: "Unauthorized", description: msg, variant: "destructive" });
-        } else {
-          toast?.({ title: "Failed", description: msg, variant: "destructive" });
-        }
+        toast?.({ title: "Failed", description: msg, variant: "destructive" });
         throw new Error(msg);
       }
 
       const data = await res.json();
-
       toast?.({ title: "Success", description: "Product registered and ownership accepted." });
-
-      // success: close modal and tell header to redirect to product page
       onClose({ submitted: true, productId: productId ?? data.productId });
     } catch (e: any) {
       console.error("Error submitting distributor registration:", e);
-      // if toast above already fired, this is extra safety
       if (!e?.message) {
         toast?.({ title: "Error", description: "Failed to register product. Try again.", variant: "destructive" });
       }
@@ -123,6 +142,17 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({ 
       <div className="mt-12 bg-white p-6 rounded-lg shadow-md max-w-4xl w-full">
         <h2 className="text-2xl font-bold mb-4">Distributor Product Registration</h2>
 
+        {productData && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-sm text-blue-800">
+              <strong>Existing Product:</strong> {productData.name} ({productData.category})
+            </p>
+            <p className="text-sm text-blue-800">
+              <strong>Quantity:</strong> {productData.quantity} {productData.unit}
+            </p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Product Information */}
           <div>
@@ -130,12 +160,22 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({ 
             <div className="space-y-4">
               <div>
                 <Label>Product Name *</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Premium Packaged Grains" />
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g., Premium Packaged Grains"
+                  disabled={!!productData}
+                />
+                {productData && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Inherited from previous owner
+                  </p>
+                )}
               </div>
 
               <div>
                 <Label>Category *</Label>
-                <Select value={category} onValueChange={(v) => setCategory(v)}>
+                <Select value={category} onValueChange={(v) => setCategory(v)} disabled={!!productData}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -146,17 +186,31 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({ 
                     <SelectItem value="supplements">Supplements</SelectItem>
                   </SelectContent>
                 </Select>
+                {productData && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Inherited from previous owner
+                  </p>
+                )}
               </div>
 
               <div>
                 <Label>Description (Optional)</Label>
-                <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description of the product..." className="w-full rounded-md border border-gray-300 p-2" />
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Brief description of the product..."
+                  className="w-full rounded-md border border-gray-300 p-2"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Quantity *</Label>
-                  <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="Amount" />
+                  <Input
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    placeholder="Amount"
+                  />
                 </div>
                 <div>
                   <Label>Unit *</Label>
@@ -170,6 +224,35 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({ 
                       <SelectItem value="pack">pack</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Purchase Price *</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="Enter purchase price"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Payment Proof (Photo) *</Label>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setPaymentProofFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  {paymentProofFile && (
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      Selected: {paymentProofFile.name}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -217,7 +300,6 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({ 
 
         <div className="flex justify-end gap-4 mt-6">
           <Button variant="outline" onClick={() => onClose({ submitted: false })} disabled={submitting}>Cancel</Button>
-          {/* Submit: will call backend to accept transfer + update product */}
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting ? "Registering..." : "Register & Accept Ownership"}
           </Button>
