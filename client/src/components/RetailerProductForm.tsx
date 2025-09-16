@@ -64,6 +64,7 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({ isVisi
     try {
       const idToken = await firebaseUser.getIdToken();
 
+      // In RetailerProductForm.tsx, check the payload:
       const payload = {
         productData: {
           name,
@@ -71,8 +72,8 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({ isVisi
           description,
           quantity,
           unit,
-          storeName,
-          storeLocation,
+          storeName, // This should be sent
+          storeLocation, // This should be sent
           arrivalDate,
           certifications,
         },

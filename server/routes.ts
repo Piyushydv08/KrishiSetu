@@ -526,6 +526,7 @@ app.put("/api/ownership-transfers/:id/accept", async (req: Request, res: Respons
     const fieldsToUpdate: any = {};
     if (productData && typeof productData === "object") {
       // allow list of updatable fields
+      // In your routes.ts, ensure these fields are in the allowed array:
       const allowed = [
         "name",
         "category",
@@ -534,15 +535,23 @@ app.put("/api/ownership-transfers/:id/accept", async (req: Request, res: Respons
         "unit",
         "distributorName",
         "warehouseLocation",
+        "storeName", // Make sure this is included
+        "storeLocation", // Make sure this is included
         "dispatchDate",
-        "certifications",
-        "storeName",
-        "storeLocation",
         "arrivalDate",
+        "certifications",
       ];
+
       for (const k of Object.keys(productData)) {
         if (allowed.includes(k)) {
-          fieldsToUpdate[k] = productData[k];
+          // Ensure proper handling of each field type
+          if (k === "certifications" && Array.isArray(productData[k])) {
+            fieldsToUpdate[k] = productData[k];
+          } else if (typeof productData[k] === "string") {
+            fieldsToUpdate[k] = productData[k].trim(); // Trim string fields
+          } else {
+            fieldsToUpdate[k] = productData[k];
+          }
         }
       }
     }

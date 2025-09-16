@@ -72,7 +72,7 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({ 
           quantity,
           unit,
           distributorName,
-          warehouseLocation,
+          warehouseLocation, // This will be used as the distributor location
           dispatchDate,
           certifications,
         },
