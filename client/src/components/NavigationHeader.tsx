@@ -1,3 +1,4 @@
+// src/components/NavigationHeader.tsx
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -11,18 +12,37 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Bell, Sprout, ChevronDown, LogOut, User, Menu } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+
+// IMPORT your form components (update paths if needed)
+import { DistributorProductForm } from "./DistributorProductForm";
+import { RetailerProductForm } from "./RetailerProductForm";
 
 export function NavigationHeader() {
   const [location, setLocation] = useLocation();
-  const { user, firebaseUser, login, logout, loading } = useAuth();
+  const { user, firebaseUser, logout, loading } = useAuth();
+  const { toast } = useToast();
+
   const [notifications, setNotifications] = useState<any[]>([]);
   const [notificationCount, setNotificationCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
 
+  // modal states (we'll show forms as overlays)
+  const [showDistributorForm, setShowDistributorForm] = useState(false);
+  const [showRetailerForm, setShowRetailerForm] = useState(false);
+
+  // pending product id so we can redirect after form submit
+  const [pendingProductIdForRedirect, setPendingProductIdForRedirect] = useState<string | null>(null);
+
+  // store the transfer id & product id for the currently-open form
+  const [currentTransferForForm, setCurrentTransferForForm] = useState<{ transferId?: string; productId?: string } | null>(null);
+
   const isActiveRoute = (path: string) => location === path;
 
+  // Fetch unread notifications (we keep only unread in dropdown)
   useEffect(() => {
+    let mounted = true;
     async function fetchNotifications() {
       if (!firebaseUser) return;
       try {
@@ -33,24 +53,52 @@ export function NavigationHeader() {
             Authorization: `Bearer ${idToken}`,
           },
         });
+        if (!mounted) return;
         if (res.ok) {
           const data = await res.json();
-          setNotifications(data);
-          setNotificationCount(data.filter((n: any) => !n.read).length);
+          // Keep only unread notifications in the dropdown
+          const unread = (data || []).filter((n: any) => !n.read);
+          setNotifications(unread);
+          setNotificationCount(unread.length);
         } else {
           setNotifications([]);
           setNotificationCount(0);
         }
       } catch (err) {
+        if (!mounted) return;
         setNotifications([]);
         setNotificationCount(0);
       }
     }
     fetchNotifications();
-    //poll every 2 seconds:
     const interval = setInterval(fetchNotifications, 2000);
-    return () => clearInterval(interval);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, [firebaseUser]);
+
+  // Prevent background scroll & avoid layout shift when modal opens.
+  useEffect(() => {
+    const modalOpen = showDistributorForm || showRetailerForm;
+    if (!modalOpen) {
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+      return;
+    }
+
+    // compute scrollbar width so content doesn't jump
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+    };
+  }, [showDistributorForm, showRetailerForm]);
 
   if (loading) {
     return (
@@ -68,9 +116,7 @@ export function NavigationHeader() {
     return (
       <nav className="bg-card border-b border-border sticky top-0 z-50 shadow-sm w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Flex container with wrapping */}
           <div className="flex flex-wrap justify-between items-center h-16 gap-2">
-            {/* Left side: Logo + nav links */}
             <div className="flex flex-wrap items-center gap-4 flex-grow min-w-0">
               <div className="flex-shrink-0">
                 <h1
@@ -84,53 +130,21 @@ export function NavigationHeader() {
                 </h1>
               </div>
 
-              {/* Desktop nav links - hide on small */}
               <div className="hidden md:flex space-x-4 min-w-0 flex-shrink">
-                <Link
-                  href="/dashboard"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActiveRoute("/dashboard")
-                      ? "text-primary border-b-2 border-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  } truncate`}
-                  data-testid="link-dashboard"
-                >
+                <Link href="/dashboard" className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground" data-testid="link-dashboard">
                   Dashboard
                 </Link>
-                <Link
-                  href="/qr-scanner"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActiveRoute("/qr-scanner")
-                      ? "text-primary border-b-2 border-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  } truncate`}
-                  data-testid="link-scanner"
-                >
+                <Link href="/qr-scanner" className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground" data-testid="link-scanner">
                   QR Scanner
                 </Link>
-                <Link
-                  href="/registered-products"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActiveRoute("/registered-products")
-                      ? "text-primary border-b-2 border-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  } truncate`}
-                  data-testid="link-registered-products"
-                >
+                <Link href="/registered-products" className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground" data-testid="link-registered-products">
                   Registered Products
                 </Link>
               </div>
             </div>
 
-            {/* Right side: Sign In/Up button */}
             <div className="flex items-center gap-3 flex-shrink-0">
-              <Button
-                onClick={() => setLocation("/login")}
-                data-testid="button-login"
-                className="whitespace-nowrap"
-              >
-                Sign In/Up
-              </Button>
+              <Button onClick={() => setLocation("/login")} data-testid="button-login" className="whitespace-nowrap">Sign In/Up</Button>
             </div>
           </div>
         </div>
@@ -138,42 +152,124 @@ export function NavigationHeader() {
     );
   }
 
-  // Nav links for desktop and mobile
   const navLinks = [
-    {
-      href: "/dashboard",
-      label: "Dashboard",
-      show: true,
-      testid: "link-dashboard",
-    },
-    {
-      href: "/qr-scanner",
-      label: "QR Scanner",
-      show: true,
-      testid: "link-scanner",
-    },
-    {
-      href: "/registered-products",
-      label: "Registered Products",
-      show: ["farmer", "distributor", "retailer"].includes(user.role),
-      testid: "link-registered-products",
-    },
-    {
-      href: "/scanned-products",
-      label: "Scanned Products",
-      show: user.role === "consumer",
-      testid: "link-scanned-products",
-    },
-    {
-      href: "/request-products",
-      label: "Request Product",
-      show: user.role === "retailer" || user.role === "distributor",
-      testid: "link-request-products",
-    },
+    { href: "/dashboard", label: "Dashboard", show: true, testid: "link-dashboard" },
+    { href: "/qr-scanner", label: "QR Scanner", show: true, testid: "link-scanner" },
+    { href: "/registered-products", label: "Registered Products", show: ["farmer", "distributor", "retailer"].includes(user.role), testid: "link-registered-products" },
+    { href: "/scanned-products", label: "Scanned Products", show: user.role === "consumer", testid: "link-scanned-products" },
+    { href: "/request-products", label: "Request Product", show: user.role === "retailer" || user.role === "distributor", testid: "link-request-products" },
   ];
 
+  // Remove notification locally (we assume server has been notified already)
+  const removeNotificationLocal = (notifId: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== notifId));
+    setNotificationCount((prev) => Math.max(0, prev - 1));
+  };
+
+  // Accept ownership: mark read & respond server-side, remove locally, open modal form
+  const handleAcceptOwnership = async (notif: any) => {
+    if (!firebaseUser) return;
+    try {
+      const idToken = await firebaseUser.getIdToken();
+
+      // mark as read server-side
+      await fetch(`/api/notifications/${notif.id}/read`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "firebase-uid": user?.firebaseUid || "",
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+
+      // tell backend we accepted the invitation (this keeps server in sync)
+      await fetch(`/api/notifications/${notif.id}/respond`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "firebase-uid": user?.firebaseUid || "",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ action: "accepted", role: user.role }),
+      });
+
+      // remove locally from dropdown
+      removeNotificationLocal(notif.id);
+
+      // remember productId & transferId for redirect and for the form to use
+      setPendingProductIdForRedirect(notif.productId ?? null);
+
+      // set current transfer info for the modal form (transferId might be in notif.transferId or notif.id)
+      setCurrentTransferForForm({
+        transferId: notif.transferId ?? notif.id,
+        productId: notif.productId,
+      });
+
+      // OPEN modal (instead of navigating to page)
+      if (user.role === "distributor") {
+        setShowDistributorForm(true);
+      } else if (user.role === "retailer") {
+        setShowRetailerForm(true);
+      } else {
+        // fallback: go to product page
+        if (notif.productId) setLocation(`/product/${notif.productId}`);
+      }
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Action failed",
+        description: "Could not accept ownership at the moment. Try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Reject ownership: inform backend, remove locally
+  const handleRejectOwnership = async (notif: any) => {
+    if (!firebaseUser) return;
+    try {
+      const idToken = await firebaseUser.getIdToken();
+
+      await fetch(`/api/notifications/${notif.id}/respond`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "firebase-uid": user?.firebaseUid || "",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ action: "rejected", role: user.role }),
+      });
+
+      // remove locally
+      removeNotificationLocal(notif.id);
+
+      toast({ title: "Request rejected", description: "You rejected the ownership request." });
+    } catch (err) {
+      console.error("Error rejecting ownership:", err);
+      toast({
+        title: "Action failed",
+        description: "Could not reject ownership. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Default click behaviour for non-ownership notifications:
+  // mark read server-side and navigate to product page.
+  // For ownership notifications, DO NOT mark read or remove here — the user must Accept/Reject.
   const handleNotificationClick = async (notif: any) => {
-    if (!notif.read) {
+    const isOwnership =
+      notif.type === "ownership_request" ||
+      notif.requestType === "ownership" ||
+      notif.ownershipRequest === true;
+
+    if (isOwnership) {
+      // keep it until explicit Accept/Reject
+      return;
+    }
+
+    if (!firebaseUser) return;
+    try {
       await fetch(`/api/notifications/${notif.id}/read`, {
         method: "PUT",
         headers: {
@@ -181,200 +277,250 @@ export function NavigationHeader() {
           "Content-Type": "application/json",
         },
       });
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n))
-      );
-      setNotificationCount((prev) => Math.max(0, prev - 1)); // Only decrement if unread
+    } catch (err) {
+      // ignore server error for read
     }
-    setNotifDropdownOpen(false);
+
+    // remove locally and navigate
+    removeNotificationLocal(notif.id);
+
     if (notif.productId) {
       setLocation(`/product/${notif.productId}`);
     }
   };
 
-  const sortedNotifications = [
-    ...notifications.filter((n) => !n.read),
-    ...notifications.filter((n) => n.read),
-  ];
+  // When form modal closes. result?: { submitted?: boolean, productId?: string }
+  const handleFormClose = (result?: { submitted?: boolean; productId?: string }) => {
+    setShowDistributorForm(false);
+    setShowRetailerForm(false);
+
+    // choose redirect target: prefer explicit productId from result, otherwise pendingProductIdForRedirect
+    const targetProductId = result?.productId ?? pendingProductIdForRedirect;
+
+    if (result?.submitted && targetProductId) {
+      setLocation(`/product/${targetProductId}`);
+    }
+
+    // cleanup
+    setPendingProductIdForRedirect(null);
+    setCurrentTransferForForm(null);
+  };
+
+  const sortedNotifications = [...notifications]; // they're unread only
 
   return (
-    <nav className="bg-card border-b border-border sticky top-0 z-50 shadow-sm w-full">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap justify-between items-center h-16 gap-2">
-          {/* Left: Logo + nav links */}
-          <div className="flex flex-wrap items-center gap-4 flex-grow min-w-0">
-            <div className="flex-shrink-0">
-              <h1
-                className="text-2xl font-bold text-primary flex items-center gap-2 cursor-pointer hover:opacity-80"
-                onClick={() => setLocation("/")}
-                style={{ userSelect: "none" }}
-                data-testid="logo-home"
-              >
-                <Sprout className="w-6 h-6" />
-                FarmTrace
-              </h1>
+    <>
+      <nav className="bg-card border-b border-border sticky top-0 z-50 shadow-sm w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap justify-between items-center h-16 gap-2">
+            {/* Left: Logo + nav links */}
+            <div className="flex flex-wrap items-center gap-4 flex-grow min-w-0">
+              <div className="flex-shrink-0">
+                <h1
+                  className="text-2xl font-bold text-primary flex items-center gap-2 cursor-pointer hover:opacity-80"
+                  onClick={() => setLocation("/")}
+                  style={{ userSelect: "none" }}
+                  data-testid="logo-home"
+                >
+                  <Sprout className="w-6 h-6" />
+                  FarmTrace
+                </h1>
+              </div>
+
+              <div className="hidden md:flex space-x-2 min-w-0 flex-shrink">
+                {navLinks
+                  .filter((link) => link.show)
+                  .map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        isActiveRoute(link.href)
+                          ? "text-primary border-b-2 border-primary bg-muted"
+                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                      } truncate`}
+                      data-testid={link.testid}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+              </div>
             </div>
-            {/* Desktop nav links */}
-            <div className="hidden md:flex space-x-2 min-w-0 flex-shrink">
+
+            {/* Right: Notifications, user menu, mobile toggle */}
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <DropdownMenu open={notifDropdownOpen} onOpenChange={setNotifDropdownOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
+                    <Bell className="h-5 w-5" />
+                    {notificationCount > 0 && (
+                      <span
+                        className="absolute -top-1 -right-1 h-5 w-5 bg-accent text-accent-foreground rounded-full text-xs flex items-center justify-center"
+                        data-testid="text-notification-count"
+                      >
+                        {notificationCount}
+                      </span>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-auto">
+                  <div className="p-2 font-semibold">Notifications</div>
+                  <DropdownMenuSeparator />
+                  {sortedNotifications.length === 0 ? (
+                    <div className="p-4 text-center text-muted-foreground text-sm">No new notifications.</div>
+                  ) : (
+                    sortedNotifications.map((notif) => {
+                      const isOwnership =
+                        notif.type === "ownership_request" ||
+                        notif.requestType === "ownership" ||
+                        notif.ownershipRequest === true;
+
+                      if (isOwnership) {
+                        // Ownership notifications: keep them until Accept/Reject
+                        return (
+                          <div key={notif.id} className="p-3 border-b last:border-b-0">
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium truncate">{notif.title}</div>
+                                <div className="text-xs text-muted-foreground truncate">{notif.message}</div>
+                                <div className="text-xs text-muted-foreground">{new Date(notif.createdAt).toLocaleString()}</div>
+                              </div>
+                              <div className="flex flex-col items-end gap-2 ml-2">
+                                <div className="flex gap-2">
+                                  <Button size="sm" onClick={() => handleAcceptOwnership(notif)} data-testid={`button-accept-${notif.id}`}>
+                                    Accept
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => handleRejectOwnership(notif)} data-testid={`button-reject-${notif.id}`}>
+                                    Reject
+                                  </Button>
+                                </div>
+                                <span className="text-xs text-accent">Pending</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Default notification item - non-ownership
+                      return (
+                        <DropdownMenuItem key={notif.id} onClick={() => handleNotificationClick(notif)} style={{ cursor: "pointer" }}>
+                          <div>
+                            <div className="font-medium">{notif.title}</div>
+                            <div className="text-xs">{notif.message}</div>
+                            <div className="text-xs text-muted-foreground">{new Date(notif.createdAt).toLocaleString()}</div>
+                          </div>
+                        </DropdownMenuItem>
+                      );
+                    })
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted" data-testid="button-user-menu">
+                    <Avatar className="w-8 h-8">
+                      <AvatarImage src={firebaseUser.photoURL || undefined} alt={user.name} />
+                      <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="hidden md:block text-left max-w-[120px] truncate">
+                      <div className="text-sm font-medium text-foreground truncate" data-testid="text-user-name" title={user.name}>
+                        {user.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate" data-testid="text-user-role" title={user.role}>
+                        {user.role}
+                      </div>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <Link href="/profile">
+                    <DropdownMenuItem className="cursor-pointer" data-testid="menu-profile">
+                      <User className="mr-2 h-4 w-4" />
+                      Profile
+                    </DropdownMenuItem>
+                  </Link>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={logout} className="cursor-pointer" data-testid="menu-logout">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <div className="md:hidden">
+                <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Toggle menu" data-testid="button-mobile-menu">
+                  <Menu className="w-6 h-6" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden mt-2 space-y-1 px-2 pb-3 border-t border-border">
               {navLinks
                 .filter((link) => link.show)
                 .map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    className={`block px-3 py-2 rounded-md text-base font-medium ${
                       isActiveRoute(link.href)
-                        ? "text-primary border-b-2 border-primary bg-muted"
+                        ? "text-primary border-l-4 border-primary bg-muted"
                         : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                    } truncate`}
+                    }`}
                     data-testid={link.testid}
                   >
                     {link.label}
                   </Link>
                 ))}
             </div>
-          </div>
+          )}
+        </div>
+      </nav>
 
-          {/* Right: Notifications, user menu, mobile toggle */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <DropdownMenu open={notifDropdownOpen} onOpenChange={setNotifDropdownOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative"
-                  data-testid="button-notifications"
-                >
-                  <Bell className="h-5 w-5" />
-                  {notificationCount > 0 && (
-                    <span
-                      className="absolute -top-1 -right-1 h-5 w-5 bg-accent text-accent-foreground rounded-full text-xs flex items-center justify-center"
-                      data-testid="text-notification-count"
-                    >
-                      {notificationCount}
-                    </span>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-auto">
-                <div className="p-2 font-semibold">Notifications</div>
-                <DropdownMenuSeparator />
-                {notifications.length === 0 ? (
-                  <div className="p-4 text-center text-muted-foreground text-sm">
-                    No new notifications.
-                  </div>
-                ) : (
-                  sortedNotifications.map((notif) => (
-                    <DropdownMenuItem
-                      key={notif.id}
-                      onClick={() => handleNotificationClick(notif)}
-                      className={notif.read ? "opacity-50" : ""}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <div>
-                        <div className="font-medium">{notif.title}</div>
-                        <div className="text-xs">{notif.message}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(notif.createdAt).toLocaleString()}
-                        </div>
-                      </div>
-                    </DropdownMenuItem>
-                  ))
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted"
-                  data-testid="button-user-menu"
-                >
-                  <Avatar className="w-8 h-8">
-                    <AvatarImage
-                      src={firebaseUser.photoURL || undefined}
-                      alt={user.name}
-                    />
-                    <AvatarFallback>
-                      {user.name.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="hidden md:block text-left max-w-[120px] truncate">
-                    <div
-                      className="text-sm font-medium text-foreground truncate"
-                      data-testid="text-user-name"
-                      title={user.name}
-                    >
-                      {user.name}
-                    </div>
-                    <div
-                      className="text-xs text-muted-foreground truncate"
-                      data-testid="text-user-role"
-                      title={user.role}
-                    >
-                      {user.role}
-                    </div>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <Link href="/profile">
-                  <DropdownMenuItem
-                    className="cursor-pointer"
-                    data-testid="menu-profile"
-                  >
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
-                  </DropdownMenuItem>
-                </Link>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={logout}
-                  className="cursor-pointer"
-                  data-testid="menu-logout"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {/* Mobile menu toggle */}
-            <div className="md:hidden">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                aria-label="Toggle menu"
-                data-testid="button-mobile-menu"
-              >
-                <Menu className="w-6 h-6" />
-              </Button>
-            </div>
+      {/* Modal overlays (fixed, centered) */}
+      {(showDistributorForm || showRetailerForm) && (
+        <div
+          aria-hidden={false}
+          className="fixed inset-0 z-[120] flex items-start justify-center"
+        >
+          {/* backdrop with blur and semi-opaque dark layer */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => {
+              // clicking backdrop cancels forms (keep behavior consistent)
+              setShowDistributorForm(false);
+              setShowRetailerForm(false);
+              setPendingProductIdForRedirect(null);
+              setCurrentTransferForForm(null);
+            }}
+          />
+
+          {/* modal panel — will not shift page content; centered, scrollable if tall */}
+          <div className="relative mt-12 max-h-[90vh] w-full max-w-4xl overflow-auto rounded-lg bg-white p-6 shadow-2xl">
+            {showDistributorForm && currentTransferForForm && (
+              <DistributorProductForm
+                isVisible={true}
+                onClose={(res) => handleFormClose(res)}
+                transferId={currentTransferForForm.transferId}
+                productId={currentTransferForForm.productId}
+              />
+            )}
+            {showRetailerForm && currentTransferForForm && (
+              <RetailerProductForm
+                isVisible={true}
+                onClose={(res) => handleFormClose(res)}
+                transferId={currentTransferForForm.transferId}
+                productId={currentTransferForForm.productId}
+              />
+            )}
           </div>
         </div>
-        {/* Mobile menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden mt-2 space-y-1 px-2 pb-3 border-t border-border">
-            {navLinks
-              .filter((link) => link.show)
-              .map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`block px-3 py-2 rounded-md text-base font-medium ${
-                    isActiveRoute(link.href)
-                      ? "text-primary border-l-4 border-primary bg-muted"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                  }`}
-                  data-testid={link.testid}
-                >
-                  {link.label}
-                </Link>
-              ))}
-          </div>
-        )}
-      </div>
-    </nav>
+      )}
+    </>
   );
 }
