@@ -2,10 +2,16 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express, { type Request, Response, NextFunction } from "express";
+import path from "path";
 
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import cors from "cors";
+
+// If using ES modules, define __dirname:
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 
 const app = express();
@@ -18,6 +24,7 @@ app.use(cors({
   credentials: true
 }));
 
+// ... existing middleware and logging
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -67,6 +74,8 @@ app.use((req, res, next) => {
   } else {
     serveStatic(app);
   }
+
+  // (No need to serve payment proofs here again, already done above)
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.

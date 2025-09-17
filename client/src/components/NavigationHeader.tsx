@@ -135,7 +135,7 @@ export function NavigationHeader() {
               <div className="flex-shrink-0">
                 <h1
                   className="text-2xl font-bold text-primary flex items-center gap-2 cursor-pointer hover:opacity-80"
-                  onClick={() => setLocation("/")}
+                  onClick={() => setLocation("/dashboard")}
                   style={{ userSelect: "none" }}
                   data-testid="logo-home"
                 >
@@ -332,7 +332,7 @@ export function NavigationHeader() {
               <div className="flex-shrink-0">
                 <h1
                   className="text-2xl font-bold text-primary flex items-center gap-2 cursor-pointer hover:opacity-80"
-                  onClick={() => setLocation("/")}
+                  onClick={() => setLocation("/dashboard")}
                   style={{ userSelect: "none" }}
                   data-testid="logo-home"
                 >

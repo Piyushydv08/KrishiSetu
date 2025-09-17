@@ -1,4 +1,4 @@
-import { Express, Request, Response } from "express";
+import express, { Express, Request, Response } from "express";
 import { createServer } from "http";
 import { MongoStorage, getDb } from "./storage";
 import { z } from "zod";
@@ -11,19 +11,49 @@ import {
 } from "@shared/schema";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
+import fs from "fs";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
 // Initialize MongoDB storage
 const storage = new MongoStorage();
+
+
 const upload = multer({
-  dest: path.join(__dirname, "../uploads/payment-proofs"),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const uploadDir = path.join(__dirname, "../uploads/payment-proofs");
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+  }),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
+    }
+  }
 });
 
-// Add these lines at the top of your file (after imports)
-
+const uploadDir = path.join(__dirname, "../uploads/payment-proofs");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log("Created upload directory:", uploadDir);
+}
 
 export async function registerRoutes(app: Express) {
+  app.use("/uploads/payment-proofs", express.static(path.join(__dirname, "../uploads/payment-proofs")));
   // --- Authentication Routes ---
   app.post("/api/user/register", async (req: Request, res: Response) => {
     try {

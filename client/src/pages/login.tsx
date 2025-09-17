@@ -41,7 +41,7 @@ export default function LoginPage() {
         await signInWithEmailAndPassword(auth, email, password);
       }
       toast.success(`Successfully ${isSignUp ? "signed up" : "logged in"}!`);
-      setLocation("/");
+      setLocation("/dashboard");
     } catch (err: any) {
       setError(err.message || "Authentication failed");
       toast.error(err.message || "Authentication failed");
@@ -56,7 +56,7 @@ export default function LoginPage() {
     try {
       await signInWithPopup(auth, googleProvider);
       toast.success("Successfully logged in with Google!");
-      setLocation("/"); 
+      setLocation("/dashboard"); 
     } catch (err: any) {
       setError(err.message || "Google login failed");
       toast.error(err.message || "Google login failed");
