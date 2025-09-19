@@ -118,7 +118,7 @@ export default function RequestProductsPage() {
         headers: getAuthHeaders(),
       });
 
-      const res = await fetch("/api/ownership-transfers", {
+      const res = await fetch("/api/request-product", {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({

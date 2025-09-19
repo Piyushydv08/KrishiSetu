@@ -442,8 +442,7 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
   // --- Ownership Transfer Routes ---
   app.post("/api/ownership-transfers", async (req: Request, res: Response) => {
     try {
-      console.log("[OWNERSHIP REQUEST] Received request body:", req.body);
-      console.log("[OWNERSHIP REQUEST] Headers:", req.headers);
+      console.log("HIT /api/ownership-transfers ENDPOINT!");
 
       const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
       if (!firebaseUid) {
@@ -528,6 +527,7 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
         type: "ownership_request",
         productId: product.id,
         transferId: transfer.id,
+        fromUserId: currentUser.id,
         read: false,
         createdAt: new Date()
       });
@@ -552,6 +552,80 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
     } catch (error) {
       console.error("Error transferring ownership:", error);
       return res.status(500).json({ message: "Failed to transfer ownership" });
+    }
+  });
+
+  app.post("/api/request-product", async (req: Request, res: Response) => {
+    try {
+      console.log("HIT /api/request-product ENDPOINT!");
+
+      const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
+      if (!firebaseUid) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const requester = await storage.getUserByFirebaseUid(firebaseUid);
+      if (!requester) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { productId, transferType, notes } = req.body;
+      if (!productId) {
+        return res.status(400).json({ message: "Product ID is required" });
+      }
+
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      // Prevent requesting your own product
+      if (product.ownerId === requester.id) {
+        return res.status(400).json({ message: "You already own this product" });
+      }
+
+      // Create a pending ownership transfer (from requester to owner)
+      const transfer = await storage.createOwnershipTransfer({
+        productId,
+        fromUserId: requester.id,
+        toUserId: product.ownerId,
+        transferType: transferType || "request",
+        notes: notes || null,
+        status: "pending"
+      });
+
+      // Log notification before creating it
+      console.log("Creating notification with type:", "product_request");
+      
+      // Notify the product owner
+      await storage.createNotification({
+        userId: product.ownerId,
+        title: "Product Ownership Request",
+        message: `${requester.name} requested ownership of ${product.name}.`,
+        type: "product_request",
+        productId: product.id,
+        transferId: transfer.id,
+        fromUserId: requester.id,
+        read: false,
+        createdAt: new Date()
+      });
+
+      // Optionally log the event
+      await storage.logProductEvent(
+        product.id,
+        "ownership_request",
+        `${requester.name} requested ownership.`,
+        requester.id,
+        { transferId: transfer.id }
+      );
+
+      return res.status(201).json({
+        message: "Ownership request sent. Waiting for acceptance.",
+        transferId: transfer.id
+      });
+    } catch (error) {
+      console.error("Error in /api/request-product:", error);
+      return res.status(500).json({ message: "Failed to request product" });
     }
   });
 

@@ -190,8 +190,9 @@ export class MongoStorage {
       ...insertNotification,
       id: randomUUID(),
       read: insertNotification.read ?? false,
-      productId: insertNotification.productId || null,
+      productId: insertNotification.productId || undefined, 
       transferId: insertNotification.transferId || undefined,
+      fromUserId: insertNotification.fromUserId || undefined,
       createdAt: new Date()
     };
     await db.collection<Notification>("notifications").insertOne(notification);

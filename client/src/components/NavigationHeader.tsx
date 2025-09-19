@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 // IMPORT your form components (update paths if needed)
 import { DistributorProductForm } from "./DistributorProductForm";
 import { RetailerProductForm } from "./RetailerProductForm";
+import { OwnershipManagementPanel } from "./OwnershipManagementPanel"; // Import at the top
 
 export function NavigationHeader() {
   const [location, setLocation] = useLocation();
@@ -30,6 +31,7 @@ export function NavigationHeader() {
   // modal states (we'll show forms as overlays)
   const [showDistributorForm, setShowDistributorForm] = useState(false);
   const [showRetailerForm, setShowRetailerForm] = useState(false);
+  const [showOwnershipPanel, setShowOwnershipPanel] = useState(false); // <-- new state
 
   // pending product id so we can redirect after form submit
   const [pendingProductIdForRedirect, setPendingProductIdForRedirect] =
@@ -42,6 +44,13 @@ export function NavigationHeader() {
   } | null>(null);
 
   const [productData, setProductData] = useState<any>(null);
+
+  const [ownershipPanelPrefill, setOwnershipPanelPrefill] = useState<{
+    productId?: string;
+    toUserId?: string;
+    transferId?: string;
+    mode?: "product_request" | "simple_transfer";
+  } | null>(null); // <-- new state
 
   const isActiveRoute = (path: string) => location === path;
 
@@ -61,10 +70,8 @@ export function NavigationHeader() {
         if (!mounted) return;
         if (res.ok) {
           const data = await res.json();
-          // Keep only unread notifications in the dropdown
-          const unread = (data || []).filter((n: any) => !n.read);
-          setNotifications(unread);
-          setNotificationCount(unread.length);
+          setNotifications(data || []); // Keep all notifications
+          setNotificationCount((data || []).filter((n: any) => !n.read).length); // Only unread count
         } else {
           setNotifications([]);
           setNotificationCount(0);
@@ -229,7 +236,6 @@ export function NavigationHeader() {
 
   // Accept ownership: mark read & respond server-side, remove locally, open modal form
   const handleAcceptOwnership = async (notif: any) => {
-    console.log("handleAcceptOwnership called with notif:", notif);
     if (!firebaseUser) return;
     try {
       const idToken = await firebaseUser.getIdToken();
@@ -258,31 +264,30 @@ export function NavigationHeader() {
       // remove locally from dropdown
       removeNotificationLocal(notif.id);
 
-      // remember productId & transferId for redirect and for the form to use
-      setPendingProductIdForRedirect(notif.productId ?? null);
+      // FLOW 2: Product request (requester → owner)
+      if (notif.type === "product_request" && notif.fromUserId) {
+        setOwnershipPanelPrefill({
+          productId: notif.productId,
+          toUserId: notif.fromUserId,
+          transferId: notif.transferId ?? notif.id,
+          mode: "product_request",
+        });
+        setShowOwnershipPanel(true);
+        return;
+      }
 
-      // set current transfer info for the modal form (transferId might be in notif.transferId or notif.id)
-      const transferId = notif.transferId ?? notif.id;
-      console.log(
-        "Setting transferId:",
-        transferId,
-        "from notif.transferId:",
-        notif.transferId,
-        "or notif.id:",
-        notif.id
-      );
+      // FLOW 1: Dashboard transfer (owner → recipient)
+      setPendingProductIdForRedirect(notif.productId ?? null);
       setCurrentTransferForForm({
-        transferId: transferId,
+        transferId: notif.transferId ?? notif.id,
         productId: notif.productId,
       });
 
-      // OPEN modal (instead of navigating to page)
       if (user.role === "distributor") {
         setShowDistributorForm(true);
       } else if (user.role === "retailer") {
         setShowRetailerForm(true);
       } else {
-        // fallback: go to product page
         if (notif.productId) setLocation(`/product/${notif.productId}`);
       }
     } catch (err) {
@@ -327,13 +332,19 @@ export function NavigationHeader() {
       });
     }
   };
-
+  const markNotificationReadLocal = (notifId: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => n.id === notifId ? { ...n, read: true } : n)
+    );
+    setNotificationCount((prev) => Math.max(0, prev - 1));
+  };
   // Default click behaviour for non-ownership notifications:
   // mark read server-side and navigate to product page.
   // For ownership notifications, DO NOT mark read or remove here — the user must Accept/Reject.
   const handleNotificationClick = async (notif: any) => {
     const isOwnership =
       notif.type === "ownership_request" ||
+      notif.type === "product_request" ||
       notif.requestType === "ownership" ||
       notif.ownershipRequest === true;
 
@@ -355,8 +366,7 @@ export function NavigationHeader() {
       // ignore server error for read
     }
 
-    // remove locally and navigate
-    removeNotificationLocal(notif.id);
+    markNotificationReadLocal(notif.id);
 
     if (notif.productId) {
       setLocation(`/product/${notif.productId}`);
@@ -463,15 +473,22 @@ export function NavigationHeader() {
                     sortedNotifications.map((notif) => {
                       const isOwnership =
                         notif.type === "ownership_request" ||
+                        notif.type === "product_request" ||
                         notif.requestType === "ownership" ||
                         notif.ownershipRequest === true;
 
+                      const isRead = notif.read;
+
+                      // Add a class for dimming
+                      const notifClass = isRead
+                        ? "opacity-50" // dull and clickable
+                        : "";
+
                       if (isOwnership) {
-                        // Ownership notifications: keep them until Accept/Reject
                         return (
                           <div
                             key={notif.id}
-                            className="p-3 border-b last:border-b-0"
+                            className={`p-3 border-b last:border-b-0 ${notifClass}`}
                           >
                             <div className="flex justify-between items-start gap-2">
                               <div className="flex-1 min-w-0">
@@ -512,12 +529,12 @@ export function NavigationHeader() {
                         );
                       }
 
-                      // Default notification item - non-ownership
                       return (
                         <DropdownMenuItem
                           key={notif.id}
-                          onClick={() => handleNotificationClick(notif)}
-                          style={{ cursor: "pointer" }}
+                          onClick={() => !isRead && handleNotificationClick(notif)}
+                          style={{ cursor: isRead ? "default" : "pointer" }}
+                          className={notifClass}
                         >
                           <div>
                             <div className="font-medium">{notif.title}</div>
@@ -666,6 +683,16 @@ export function NavigationHeader() {
           </div>
         </div>
       )}
+
+      {/* Ownership Management Panel (fixed, centered) */}
+      {showOwnershipPanel && (
+        <OwnershipManagementPanel
+          isOpen={showOwnershipPanel}
+          onOpenChange={setShowOwnershipPanel}
+          prefillData={ownershipPanelPrefill}
+        />
+      )}
     </>
   );
 }
+

@@ -153,16 +153,19 @@ export const notificationSchema = z.object({
   message: z.string(),
   type: z.enum([
     "ownership_request",
+    "product_request",
     "ownership_transfer",
     "ownership_transfer_rejected",
+    "ownership_request_accepted",
     "product_received",
     "product_out_for_delivery",
     "product_event"
   ]),
+  productId: z.string().optional(),
+  transferId: z.string().optional(),
+  fromUserId: z.string().optional(), // <-- Add this line
   read: z.boolean().default(false),
-  productId: z.string().nullable().optional(),
   createdAt: z.date(),
-  transferId: z.string().optional()
 });
 export type Notification = z.infer<typeof notificationSchema>;
 

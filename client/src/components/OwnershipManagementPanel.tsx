@@ -1,5 +1,5 @@
 // components/OwnershipManagementPanel.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,9 +35,25 @@ const transferFormSchema = z.object({
   notes: z.string().optional(),
 });
 
-export function OwnershipManagementPanel() {
+interface OwnershipManagementPanelProps {
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  prefillData?: {
+    productId?: string;
+    toUserId?: string;
+    toUserName?: string;
+    transferId?: string;
+    mode?: "product_request" | "simple_transfer";
+  } | null;
+}
+
+export function OwnershipManagementPanel({
+  isOpen = false,
+  onOpenChange,
+  prefillData,
+}: OwnershipManagementPanelProps) {
   const { user } = useAuth();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(isOpen);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -53,6 +69,42 @@ export function OwnershipManagementPanel() {
       notes: "",
     },
   });
+
+  useEffect(() => {
+    setIsDialogOpen(isOpen);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isDialogOpen && prefillData) {
+      // Prefill product
+      if (prefillData.productId) {
+        fetch(`/api/products/${prefillData.productId}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((product) => {
+            if (product) {
+              setSelectedProduct(product);
+              form.setValue("productId", product.id);
+            }
+          });
+      }
+      // Prefill user
+      if (prefillData.toUserId) {
+        fetch(`/api/users/${prefillData.toUserId}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((user) => {
+            if (user) {
+              setSelectedUser(user);
+              form.setValue("toUserId", user.id);
+              form.setValue("toUserName", user.name);
+            }
+          });
+      }
+      // Prefill user name if provided
+      if (prefillData.toUserName) {
+        form.setValue("toUserName", prefillData.toUserName);
+      }
+    }
+  }, [isDialogOpen, prefillData]);
 
   const handleUserSelect = (user: any) => {
     setSelectedUser(user);
