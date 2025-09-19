@@ -43,8 +43,13 @@ export const productSchema = z.object({
   ownerId: z.string(),
   blockchainHash: z.string().nullable().optional(),
   status: z.string().default("registered"),
-  price: z.string().nullable().optional(), // Add price field
-  createdAt: z.date()
+  price: z.string().nullable().optional(),
+  createdAt: z.date(),
+  // Add these new fields
+  distributorName: z.string().nullable().optional(),
+  warehouseLocation: z.string().nullable().optional(),
+  storeName: z.string().nullable().optional(),
+  storeLocation: z.string().nullable().optional()
 });
 export type Product = z.infer<typeof productSchema>;
 

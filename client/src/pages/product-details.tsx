@@ -1,8 +1,3 @@
-// src/pages/product/[id].tsx
-// (this is your existing ProductDetails implementation with events fetch)
-// kept mostly the same — server now logs product events when the transfer+registration completes,
-// so the timeline will show "accepted ownership / new owner added" automatically.
-
 import { useEffect, useState } from "react";
 import { useParams } from "wouter";
 import { NavigationHeader } from "@/components/NavigationHeader";
@@ -59,6 +54,14 @@ export default function ProductDetails() {
   const params = useParams();
   const productId = params.id as string;
   const { data: product, isLoading, error } = useProduct(productId);
+
+  // --- Add this state for the selected product in the supply chain map ---
+  const [selectedProductIdForMap, setSelectedProductIdForMap] = useState<string>(productId);
+
+  // Update selected product when productId changes
+  useEffect(() => {
+    setSelectedProductIdForMap(productId);
+  }, [productId]);
 
   // --- Add this state and effect for events ---
   const [events, setEvents] = useState<ProductEvent[]>([]);
@@ -415,7 +418,17 @@ export default function ProductDetails() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <SupplyChainMap productId={productId} />
+                
+                <SupplyChainMap 
+                  product={product}
+                  showProductSelector={false}
+                  onProductSelect={(newProductId) => {
+                    // If a different product is selected, navigate to that product's page
+                    if (newProductId !== productId) {
+                      window.location.href = `/product/${newProductId}`;
+                    }
+                  }}
+                />
               </CardContent>
             </Card>
 
