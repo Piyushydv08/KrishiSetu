@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { MapPin, Sprout, Factory, Warehouse, Store, Calendar, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Product } from '@shared/schema';
 
 interface JourneyStep {
   id: string;
@@ -20,33 +21,54 @@ interface JourneyStep {
 
 interface SupplyChainMapProps {
   productId?: string;
+  product?: Product; // Add product prop
+  onProductSelect?: (productId: string) => void;
+  showProductSelector?: boolean; // Add this prop to control visibility of the selector
 }
 
-export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
+// Create an extended interface that includes the missing properties
+interface ExtendedProduct extends Product {
+  distributorName?: string;
+  warehouseLocation?: string;
+  storeName?: string;
+  storeLocation?: string;
+}
+
+export function SupplyChainMap({ productId, product, onProductSelect, showProductSelector = true }: SupplyChainMapProps = {}) {
   const { user } = useAuth();
   const { data: products, isLoading } = useProducts(user?.id);
   const [selectedProductId, setSelectedProductId] = useState<string>(productId || '');
   const [journeySteps, setJourneySteps] = useState<JourneyStep[]>([]);
   
-  // Find the selected product
-  const selectedProduct = products?.find(p => p.id === selectedProductId);
+  // Update selectedProductId when productId prop changes
+  useEffect(() => {
+    if (productId && productId !== selectedProductId) {
+      setSelectedProductId(productId);
+    }
+  }, [productId]);
+
+  // If a product prop is provided, use it, otherwise find the product from the list
+  const selectedProduct = product || products?.find(p => p.id === selectedProductId);
 
   // Update journey steps when selected product changes
   useEffect(() => {
     if (selectedProduct) {
       console.log('Selected product data:', selectedProduct);
       
+      // Cast to ExtendedProduct to access the additional properties
+      const extendedProduct = selectedProduct as ExtendedProduct;
+      
       // Get farm data from the selected product
-      const farmLocation = selectedProduct.location?.trim() || 'Haryana';
-      const farmName = selectedProduct.farmName?.trim() || 'Sunny Acres Farm';
+      const farmLocation = extendedProduct.location?.trim() || 'Haryana';
+      const farmName = extendedProduct.farmName?.trim() || 'Sunny Acres Farm';
       
       // Get distributor data from the selected product
-      const distributorName = selectedProduct.distributorName?.trim() || 'Fresh Pack Co.';
-      const distributorLocation = selectedProduct.warehouseLocation?.trim() || 'Chandigarh';
+      const distributorName = extendedProduct.distributorName?.trim() || 'Fresh Pack Co.';
+      const distributorLocation = extendedProduct.warehouseLocation?.trim() || 'Chandigarh';
       
       // Get retailer data from the selected product
-      const retailerName = selectedProduct.storeName?.trim() || 'Green Market';
-      const retailerLocation = selectedProduct.storeLocation?.trim() || 'Bangalore';
+      const retailerName = extendedProduct.storeName?.trim() || 'Green Market';
+      const retailerLocation = extendedProduct.storeLocation?.trim() || 'Bangalore';
       
       console.log('Retailer data from product:', { retailerName, retailerLocation });
       
@@ -95,65 +117,18 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
       ];
       
       setJourneySteps(updatedJourneySteps);
-    } else if (products && products.length > 0) {
-      // If no product is selected, use the first product
+    } else if (products && products.length > 0 && !selectedProductId && !product) {
+      // If no product is selected and no product prop provided, use the first product
       const firstProduct = products[0];
-      const farmLocation = firstProduct.location?.trim() || 'Haryana';
-      const farmName = firstProduct.farmName?.trim() || 'Sunny Acres Farm';
-      const distributorName = firstProduct.distributorName?.trim() || 'Fresh Pack Co.';
-      const distributorLocation = firstProduct.warehouseLocation?.trim() || 'Chandigarh';
-      const retailerName = firstProduct.storeName?.trim() || 'Green Market';
-      const retailerLocation = firstProduct.storeLocation?.trim() || 'Bangalore';
-      
-      const updatedJourneySteps: JourneyStep[] = [
-        { 
-          id: '1', 
-          name: farmName, 
-          location: farmLocation, 
-          date: 'Jan 10', 
-          status: 'Harvested', 
-          icon: Sprout, 
-          bgColor: 'bg-primary', 
-          textColor: 'text-primary-foreground'
-        },
-        { 
-          id: '2', 
-          name: distributorName, 
-          location: distributorLocation, 
-          date: 'Jan 12', 
-          status: 'Processed', 
-          icon: Factory, 
-          bgColor: 'bg-accent', 
-          textColor: 'text-accent-foreground'
-        },
-        { 
-          id: '3', 
-          name: retailerName, // Retailer name
-          location: retailerLocation, // Retailer location
-          date: 'Jan 14', 
-          status: 'Available at Store', 
-          icon: Store, 
-          bgColor: 'bg-secondary', 
-          textColor: 'text-secondary-foreground'
-        },
-        { 
-          id: '4', 
-          name: 'Consumer', 
-          location: 'Bengaluru', // Fixed to Bengaluru
-          date: 'Jan 16', 
-          status: 'Purchased', 
-          icon: Warehouse, 
-          bgColor: 'bg-warning', 
-          textColor: 'text-white'
-        }
-      ];
-      
-      setJourneySteps(updatedJourneySteps);
+      setSelectedProductId(firstProduct.id);
+      if (onProductSelect) {
+        onProductSelect(firstProduct.id);
+      }
     } else {
       // If no products are available, show empty state
       setJourneySteps([]);
     }
-  }, [selectedProduct, products]);
+  }, [selectedProduct, products, selectedProductId, onProductSelect, product]);
 
   const journeyStats = {
     verifiedStages: journeySteps.length, // Dynamic based on actual steps
@@ -207,29 +182,47 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
           <MapPin className="w-5 h-5 text-accent" />
           Supply Chain Journey
         </h3>
-        <div className="flex items-center gap-3">
-          <Select 
-            value={selectedProductId} 
-            onValueChange={(value) => {
-              console.log('Product selected:', value);
-              setSelectedProductId(value);
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-64">
-              {selectedProductId ? (
-                <SelectValue placeholder="Select a product" />
-              ) : (
-                <span className="text-muted-foreground">Select a product</span>
-              )}
-            </SelectTrigger>
-            <SelectContent>
-              {products?.map(p => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.batchId} – {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {showProductSelector ? (
+          <div className="flex items-center gap-3">
+            <Select 
+              value={selectedProductId} 
+              onValueChange={(value) => {
+                console.log('Product selected:', value);
+                setSelectedProductId(value);
+                if (onProductSelect) {
+                  onProductSelect(value);
+                }
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-64">
+                <SelectValue placeholder="Select a product">
+                  {selectedProductId ? (
+                    products?.find(p => p.id === selectedProductId)?.batchId + ' – ' + 
+                    products?.find(p => p.id === selectedProductId)?.name
+                  ) : (
+                    "Select a product"
+                  )}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {products?.map(p => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.batchId} – {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button 
+              onClick={openGoogleMapsRoute}
+              variant="outline"
+              className="flex items-center gap-2"
+              disabled={journeySteps.length === 0}
+            >
+              <ExternalLink className="w-4 h-4" />
+              View on Map
+            </Button>
+          </div>
+        ) : (
           <Button 
             onClick={openGoogleMapsRoute}
             variant="outline"
@@ -239,7 +232,7 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
             <ExternalLink className="w-4 h-4" />
             View on Map
           </Button>
-        </div>
+        )}
       </CardHeader>
 
       {/* Map & Steps */}
@@ -269,25 +262,27 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium text-foreground truncate">{step.name}</div>
                             <div className="text-xs text-muted-foreground truncate">{step.location}</div>
-                            <div className="flex items-center text-xs text-verified gap-1 mt-1">
+                            <div className="flex items-center text-xs text-green-600 gap-1 mt-1">
                               <Calendar className="w-3 h-3 flex-shrink-0" />
                               <span>{step.date}</span>
                             </div>
                           </div>
                         </div>
 
-                        {/* Arrow - Show for ALL items */}
-                        <div className="flex-shrink-0 ml-3">
-                          <svg 
-                            className="w-5 h-5 text-blue-600" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </div>
+                        {/* Arrow - Show for all except last item */}
+                        {idx !== journeySteps.length - 1 && (
+                          <div className="flex-shrink-0 ml-3">
+                            <svg 
+                              className="w-5 h-5 text-blue-600" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -308,7 +303,7 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
                           <div className="text-center">
                             <div className="text-sm font-medium text-foreground">{step.name}</div>
                             <div className="text-xs text-muted-foreground">{step.location}</div>
-                            <div className="flex items-center justify-center text-xs text-verified gap-1 mt-1">
+                            <div className="flex items-center justify-center text-xs text-green-600 gap-1 mt-1">
                               <Calendar className="w-3 h-3" />
                               <span>{step.date}</span>
                             </div>
@@ -332,7 +327,7 @@ export function SupplyChainMap({ productId }: SupplyChainMapProps = {}) {
             <div className="p-4 border-t border-border">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center text-sm">
                 <div>
-                  <div className="text-xl font-bold text-verified">{journeyStats.verifiedStages}</div>
+                  <div className="text-xl font-bold text-green-600">{journeyStats.verifiedStages}</div>
                   <div className="text-xs text-muted-foreground">Verified Stages</div>
                 </div>
                 <div>
