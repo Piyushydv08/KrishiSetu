@@ -442,46 +442,87 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
   // --- Ownership Transfer Routes ---
   app.post("/api/ownership-transfers", async (req: Request, res: Response) => {
     try {
-      const parse = insertOwnershipTransferSchema.safeParse(req.body);
-      if (!parse.success) {
-        return res.status(400).json({ message: "Invalid ownership transfer data", errors: parse.error.format() });
-      }
-      
+      console.log("[OWNERSHIP REQUEST] Received request body:", req.body);
+      console.log("[OWNERSHIP REQUEST] Headers:", req.headers);
+
       const firebaseUid = req.header('firebase-uid') || req.header('x-firebase-uid');
       if (!firebaseUid) {
+        console.log("[OWNERSHIP REQUEST] No firebase-uid header found");
         return res.status(401).json({ message: "Unauthorized" });
       }
-      
+
       const currentUser = await storage.getUserByFirebaseUid(firebaseUid);
       if (!currentUser) {
+        console.log("[OWNERSHIP REQUEST] User not found for firebaseUid:", firebaseUid);
         return res.status(404).json({ message: "User not found" });
       }
-      
-      const product = await storage.getProduct(parse.data.productId);
+
+      // Validate required fields manually since we're not using the full schema
+      const productId = req.body.productId;
+      const transferType = req.body.transferType;
+      const notes = req.body.notes;
+      const toUserId = req.body.toUserId;
+
+      console.log("[OWNERSHIP REQUEST] Raw req.body:", req.body);
+      console.log("[OWNERSHIP REQUEST] Direct access - toUserId:", req.body.toUserId);
+      console.log("[OWNERSHIP REQUEST] Direct access - productId:", req.body.productId);
+      console.log("[OWNERSHIP REQUEST] Direct access - transferType:", req.body.transferType);
+      console.log("[OWNERSHIP REQUEST] Direct access - notes:", req.body.notes);
+
+      if (!productId) {
+        console.log("[OWNERSHIP REQUEST] Product ID is missing");
+        return res.status(400).json({ message: "Product ID is required" });
+      }
+
+      const product = await storage.getProduct(productId);
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
-      
-      // Prevent transferring to the same owner
-      if (product.ownerId === parse.data.toUserId) {
-        return res.status(400).json({ message: "Cannot transfer to the same owner" });
+
+      let recipientUserId: string;
+      let isOwnerTransfer = false;
+
+      // Determine the scenario based on whether current user owns the product
+      if (product.ownerId === currentUser.id) {
+        // Current user is the product owner - this is an owner-initiated transfer
+        if (!toUserId) {
+          return res.status(400).json({ message: "toUserId is required for owner-initiated transfers" });
+        }
+        recipientUserId = toUserId;
+        isOwnerTransfer = true;
+        console.log("[OWNERSHIP REQUEST] Owner-initiated transfer to:", recipientUserId);
+      } else {
+        // Current user is not the product owner - this is a consumer request
+        recipientUserId = product.ownerId;
+        console.log("[OWNERSHIP REQUEST] Consumer request to product owner:", recipientUserId);
       }
-      
-      const newOwner = await storage.getUser(parse.data.toUserId);
-      if (!newOwner) {
-        return res.status(404).json({ message: "New owner not found" });
+
+      // Prevent self-transfer
+      if (recipientUserId === currentUser.id) {
+        return res.status(400).json({ message: "Cannot transfer ownership to yourself" });
       }
-      
+
+      // Validate recipient exists
+      const recipientUser = await storage.getUser(recipientUserId);
+      if (!recipientUser) {
+        return res.status(404).json({ message: "Recipient user not found" });
+      }
+
       // Create a pending transfer
       const transfer = await storage.createOwnershipTransfer({
-        ...parse.data,
-        fromUserId: product.ownerId, // Set the fromUserId to the current product owner
-        status: "pending" // Set to pending until accepted
+        productId,
+        fromUserId: currentUser.id, // Requester (current user)
+        toUserId: recipientUserId, // Use recipientUserId determined above
+        transferType: transferType || "request",
+        notes: notes || null,
+        status: "pending"
       });
-      
-      // Create notification for the new owner (recipient)
+
+      console.log(`[OWNERSHIP REQUEST] Requester: ${currentUser.name} (${currentUser.id}) -> Owner: ${product.ownerId}`);
+
+      // Create notification for the recipient
       await storage.createNotification({
-        userId: parse.data.toUserId,
+        userId: recipientUserId, // Send to the determined recipient
         title: "Product Ownership Request",
         message: `${currentUser.name} sent an ownership transfer request for ${product.name} to you.`,
         type: "ownership_request",
@@ -490,6 +531,12 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
         read: false,
         createdAt: new Date()
       });
+
+      // DEBUG: Log notification recipients
+      console.log(`Notification sent to userId: ${recipientUserId} for product: ${product.name}`);
+
+      console.log(`[NOTIFICATION CREATED] Sent to user: ${recipientUserId} for product: ${product.name}`);
+
       await storage.logProductEvent(
         product.id,
         "ownership_request",
@@ -497,7 +544,7 @@ app.patch("/api/users/:id", async (req: Request, res: Response) => {
         currentUser.id,
         { transferId: transfer.id }
       );
-      
+
       return res.status(201).json({
         message: "Transfer request sent. Waiting for acceptance.",
         transferId: transfer.id

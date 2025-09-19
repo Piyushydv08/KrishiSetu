@@ -1,26 +1,39 @@
 // components/OwnershipManagementPanel.tsx
-import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useToast } from '@/hooks/use-toast';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Shield, Users, AlertCircle } from 'lucide-react';
-import { UserSearch } from './UserSearch';
-import { ProductSearch } from './ProductSearch';
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useToast } from "@/hooks/use-toast";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Shield, Users, AlertCircle } from "lucide-react";
+import { UserSearch } from "./UserSearch";
+import { ProductSearch } from "./ProductSearch";
 
 const transferFormSchema = z.object({
-  productId: z.string().min(1, 'Product is required'),
-  toUserId: z.string().min(1, 'New owner is required'),
-  toUserName: z.string().min(1, 'New owner is required'),
-  transferType: z.string().min(1, 'Transfer type is required'),
-  notes: z.string().optional()
+  productId: z.string().min(1, "Product is required"),
+  toUserId: z.string().min(1, "New owner is required"),
+  toUserName: z.string().min(1, "New owner is required"),
+  transferType: z.string().min(1, "Transfer type is required"),
+  notes: z.string().optional(),
 });
-
 
 export function OwnershipManagementPanel() {
   const { user } = useAuth();
@@ -33,80 +46,85 @@ export function OwnershipManagementPanel() {
   const form = useForm({
     resolver: zodResolver(transferFormSchema),
     defaultValues: {
-      productId: '',
-      toUserId: '',
-      toUserName: '',
-      transferType: 'transfer',
-      notes: ''
-    }
+      productId: "",
+      toUserId: "",
+      toUserName: "",
+      transferType: "transfer",
+      notes: "",
+    },
   });
 
   const handleUserSelect = (user: any) => {
     setSelectedUser(user);
-    form.setValue('toUserId', user.id);
-    form.setValue('toUserName', user.name);
+    form.setValue("toUserId", user.id);
+    form.setValue("toUserName", user.name);
   };
 
   const handleProductSelect = (product: any) => {
     setSelectedProduct(product);
-    form.setValue('productId', product.id);
+    form.setValue("productId", product.id);
   };
 
   const clearUserSelection = () => {
     setSelectedUser(null);
-    form.setValue('toUserId', '');
-    form.setValue('toUserName', '');
+    form.setValue("toUserId", "");
+    form.setValue("toUserName", "");
   };
 
   const clearProductSelection = () => {
     setSelectedProduct(null);
-    form.setValue('productId', '');
+    form.setValue("productId", "");
   };
 
   const onSubmit = async (data: z.infer<typeof transferFormSchema>) => {
     if (!user) return;
-    
+
     setIsSubmitting(true);
-    
+
+    console.log("[FRONTEND] Form data:", data);
+    console.log("[FRONTEND] toUserId:", data.toUserId);
+    console.log("[FRONTEND] selectedUser:", selectedUser);
+
     try {
-      const response = await fetch('/api/ownership-transfers', {
-        method: 'POST',
+      const requestBody = {
+        productId: data.productId,
+        toUserId: data.toUserId,
+        transferType: data.transferType,
+        notes: data.notes,
+      };
+      console.log("[FRONTEND] Request body:", requestBody);
+
+      const response = await fetch("/api/ownership-transfers", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'firebase-uid': user.firebaseUid
+          "Content-Type": "application/json",
+          "firebase-uid": user.firebaseUid,
         },
-        body: JSON.stringify({
-          productId: data.productId,
-          toUserId: data.toUserId,
-          transferType: data.transferType,
-          notes: data.notes,
-          fromUserId: user.id
-        })
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to transfer ownership');
+        throw new Error(errorData.message || "Failed to transfer ownership");
       }
 
       const result = await response.json();
-      
+
       toast({
-        title: 'Ownership Transfer Request Sent',
+        title: "Ownership Transfer Request Sent",
         description: `A transfer request has been sent to ${data.toUserName}. They need to accept it to complete the transfer.`,
-        variant: 'default'
+        variant: "default",
       });
-      
+
       setIsDialogOpen(false);
       form.reset();
       setSelectedUser(null);
       setSelectedProduct(null);
-      
     } catch (error: any) {
       toast({
-        title: 'Transfer Failed',
-        description: error.message || 'Something went wrong',
-        variant: 'destructive'
+        title: "Transfer Failed",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
@@ -122,7 +140,7 @@ export function OwnershipManagementPanel() {
             Ownership Management
           </h3>
         </CardHeader>
-        
+
         <CardContent className="p-6">
           <div className="bg-muted rounded-lg p-8 text-center relative">
             <div className="relative z-10">
@@ -130,7 +148,7 @@ export function OwnershipManagementPanel() {
               <p className="text-sm text-muted-foreground mb-4">
                 Manage product ownership and transfer products securely
               </p>
-              <Button 
+              <Button
                 className="bg-accent text-accent-foreground hover:bg-accent/90"
                 onClick={() => setIsDialogOpen(true)}
               >
@@ -138,7 +156,7 @@ export function OwnershipManagementPanel() {
               </Button>
             </div>
           </div>
-          
+
           <div className="mt-4 p-4 bg-muted/30 rounded-lg">
             <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-2">
               <AlertCircle className="w-4 h-4" />
@@ -154,16 +172,20 @@ export function OwnershipManagementPanel() {
           <DialogHeader>
             <DialogTitle>Transfer Product Ownership</DialogTitle>
             <DialogDescription>
-              Transfer ownership of your product to another user. They will need to accept the transfer.
+              Transfer ownership of your product to another user. They will need
+              to accept the transfer.
             </DialogDescription>
           </DialogHeader>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="space-y-4 py-4"
+            >
               <FormItem>
                 <FormLabel>Your Product</FormLabel>
                 {user && (
-                  <ProductSearch 
+                  <ProductSearch
                     onProductSelect={handleProductSelect}
                     ownerId={user.id}
                     placeholder="Search your products by name, category, farm, or batch ID..."
@@ -177,7 +199,7 @@ export function OwnershipManagementPanel() {
               <FormItem>
                 <FormLabel>Transfer To</FormLabel>
                 {user && (
-                  <UserSearch 
+                  <UserSearch
                     currentUserId={user.id}
                     onUserSelect={handleUserSelect}
                     placeholder="Search users by name, username, or email..."
@@ -194,7 +216,7 @@ export function OwnershipManagementPanel() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Transfer Type</FormLabel>
-                    <select 
+                    <select
                       {...field}
                       className="w-full p-2 border rounded-md"
                       required
@@ -217,8 +239,8 @@ export function OwnershipManagementPanel() {
                   <FormItem>
                     <FormLabel>Notes (Optional)</FormLabel>
                     <FormControl>
-                      <textarea 
-                        {...field} 
+                      <textarea
+                        {...field}
                         placeholder="Add notes about this transfer"
                         className="w-full p-2 border rounded-md"
                         rows={3}
@@ -242,11 +264,15 @@ export function OwnershipManagementPanel() {
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   type="submit"
-                  disabled={isSubmitting || !form.watch('toUserId') || !form.watch('productId')}
+                  disabled={
+                    isSubmitting ||
+                    !form.watch("toUserId") ||
+                    !form.watch("productId")
+                  }
                 >
-                  {isSubmitting ? 'Processing...' : 'Send Transfer Request'}
+                  {isSubmitting ? "Processing..." : "Send Transfer Request"}
                 </Button>
               </DialogFooter>
             </form>
