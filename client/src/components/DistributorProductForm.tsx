@@ -2,10 +2,17 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface DistributorProductFormProps {
   isVisible: boolean;
@@ -26,17 +33,20 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
   onClose,
   transferId,
   productId,
-  productData
+  productData,
 }) => {
   if (!isVisible) return null;
 
   const { firebaseUser } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Initialize form fields with productData if available
   const [name, setName] = useState(productData?.name || "");
   const [category, setCategory] = useState(productData?.category || "");
-  const [description, setDescription] = useState(productData?.description || "");
+  const [description, setDescription] = useState(
+    productData?.description || ""
+  );
   const [quantity, setQuantity] = useState(productData?.quantity || "");
   const [unit, setUnit] = useState(productData?.unit || "");
   const [distributorName, setDistributorName] = useState("");
@@ -49,16 +59,18 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
 
   useEffect(() => {
     if (productData) {
-      setName(productData.name);
-      setCategory(productData.category);
+      setName(productData.name || "");
+      setCategory(productData.category || "");
       setDescription(productData.description || "");
-      setQuantity(productData.quantity);
-      setUnit(productData.unit);
+      setQuantity(productData.quantity ? String(productData.quantity) : "");
+      setUnit(productData.unit || "");
     }
   }, [productData]);
 
   const toggleCertification = (cert: string) => {
-    setCertifications((prev) => (prev.includes(cert) ? prev.filter((c) => c !== cert) : [...prev, cert]));
+    setCertifications((prev) =>
+      prev.includes(cert) ? prev.filter((c) => c !== cert) : [...prev, cert]
+    );
   };
 
   const validate = () => {
@@ -76,14 +88,29 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
   };
 
   const handleSubmit = async () => {
+    console.log("DistributorProductForm handleSubmit called");
+    console.log("transferId:", transferId);
+    console.log("productId:", productId);
+    console.log("firebaseUser:", firebaseUser ? firebaseUser.uid : "null");
+
     const err = validate();
     if (err) {
-      toast?.({ title: "Validation error", description: err, variant: "destructive" });
+      console.log("Validation error:", err);
+      toast?.({
+        title: "Validation error",
+        description: err,
+        variant: "destructive",
+      });
       return;
     }
 
     if (!firebaseUser) {
-      toast?.({ title: "Not authenticated", description: "Please sign in and try again.", variant: "destructive" });
+      console.log("No firebaseUser");
+      toast?.({
+        title: "Not authenticated",
+        description: "Please sign in and try again.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -91,6 +118,7 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
 
     try {
       const idToken = await firebaseUser.getIdToken();
+      console.log("idToken obtained");
 
       const formData = new FormData();
       formData.append("name", name);
@@ -107,6 +135,12 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
       formData.append("productId", productId || "");
       formData.append("transferId", transferId || "");
 
+      console.log("FormData entries:");
+      // Use Array.from to avoid TS iteration error
+      Array.from(formData.entries()).forEach(([key, value]) => {
+        console.log(key, value);
+      });
+
       const res = await fetch(`/api/ownership-transfers/${transferId}/accept`, {
         method: "PUT",
         headers: {
@@ -117,20 +151,37 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
         body: formData,
       });
 
+      console.log("Fetch response status:", res.status, res.statusText);
+
       if (!res.ok) {
         const body = await res.json().catch(() => null);
+        console.log("Response body:", body);
         const msg = body?.message || `${res.status} ${res.statusText}`;
         toast?.({ title: "Failed", description: msg, variant: "destructive" });
         throw new Error(msg);
       }
 
       const data = await res.json();
-      toast?.({ title: "Success", description: "Product registered and ownership accepted." });
+      console.log("Success data:", data);
+      toast?.({
+        title: "Success",
+        description: "Product registered and ownership accepted.",
+      });
+
+      // Invalidate queries to refresh registered products
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+
       onClose({ submitted: true, productId: productId ?? data.productId });
     } catch (e: any) {
       console.error("Error submitting distributor registration:", e);
       if (!e?.message) {
-        toast?.({ title: "Error", description: "Failed to register product. Try again.", variant: "destructive" });
+        toast?.({
+          title: "Error",
+          description: "Failed to register product. Try again.",
+          variant: "destructive",
+        });
       }
     } finally {
       setSubmitting(false);
@@ -140,15 +191,19 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
       <div className="mt-12 bg-white p-6 rounded-lg shadow-md max-w-4xl w-full">
-        <h2 className="text-2xl font-bold mb-4">Distributor Product Registration</h2>
+        <h2 className="text-2xl font-bold mb-4">
+          Distributor Product Registration
+        </h2>
 
         {productData && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
             <p className="text-sm text-blue-800">
-              <strong>Existing Product:</strong> {productData.name} ({productData.category})
+              <strong>Existing Product:</strong> {productData.name} (
+              {productData.category})
             </p>
             <p className="text-sm text-blue-800">
-              <strong>Quantity:</strong> {productData.quantity} {productData.unit}
+              <strong>Quantity:</strong> {productData.quantity}{" "}
+              {productData.unit}
             </p>
           </div>
         )}
@@ -175,7 +230,11 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
 
               <div>
                 <Label>Category *</Label>
-                <Select value={category} onValueChange={(v) => setCategory(v)} disabled={!!productData}>
+                <Select
+                  value={category}
+                  onValueChange={(v) => setCategory(v)}
+                  disabled={!!productData}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -245,7 +304,9 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
                   <Input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setPaymentProofFile(e.target.files?.[0] || null)}
+                    onChange={(e) =>
+                      setPaymentProofFile(e.target.files?.[0] || null)
+                    }
                     required
                   />
                   {paymentProofFile && (
@@ -264,33 +325,76 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
             <div className="space-y-4">
               <div>
                 <Label>Distributor Name *</Label>
-                <Input value={distributorName} onChange={(e) => setDistributorName(e.target.value)} placeholder="e.g., GreenField Distributors" />
+                <Input
+                  value={distributorName}
+                  onChange={(e) => setDistributorName(e.target.value)}
+                  placeholder="e.g., GreenField Distributors"
+                />
               </div>
 
               <div>
                 <Label>Warehouse Location *</Label>
-                <Input value={warehouseLocation} onChange={(e) => setWarehouseLocation(e.target.value)} placeholder="Search for a city or location..." />
+                <Input
+                  value={warehouseLocation}
+                  onChange={(e) => setWarehouseLocation(e.target.value)}
+                  placeholder="Search for a city or location..."
+                />
               </div>
 
               <div>
                 <Label>Dispatch Date *</Label>
-                <Input type="date" value={dispatchDate} onChange={(e) => setDispatchDate(e.target.value)} />
+                <Input
+                  type="date"
+                  value={dispatchDate}
+                  onChange={(e) => setDispatchDate(e.target.value)}
+                />
               </div>
 
               <div>
                 <Label>Certifications (Optional)</Label>
                 <div className="flex gap-4 mt-2">
                   <div>
-                    <input type="checkbox" id="cert1" checked={certifications.includes("Certified Distributor")} onChange={() => toggleCertification("Certified Distributor")} />
-                    <label htmlFor="cert1" className="ml-2">Certified Distributor</label>
+                    <input
+                      type="checkbox"
+                      id="cert1"
+                      checked={certifications.includes("Certified Distributor")}
+                      onChange={() =>
+                        toggleCertification("Certified Distributor")
+                      }
+                    />
+                    <label htmlFor="cert1" className="ml-2">
+                      Certified Distributor
+                    </label>
                   </div>
                   <div>
-                    <input type="checkbox" id="cert2" checked={certifications.includes("Temperature Controlled")} onChange={() => toggleCertification("Temperature Controlled")} />
-                    <label htmlFor="cert2" className="ml-2">Temperature Controlled</label>
+                    <input
+                      type="checkbox"
+                      id="cert2"
+                      checked={certifications.includes(
+                        "Temperature Controlled"
+                      )}
+                      onChange={() =>
+                        toggleCertification("Temperature Controlled")
+                      }
+                    />
+                    <label htmlFor="cert2" className="ml-2">
+                      Temperature Controlled
+                    </label>
                   </div>
                   <div>
-                    <input type="checkbox" id="cert3" checked={certifications.includes("Eco-Friendly Packaging")} onChange={() => toggleCertification("Eco-Friendly Packaging")} />
-                    <label htmlFor="cert3" className="ml-2">Eco-Friendly Packaging</label>
+                    <input
+                      type="checkbox"
+                      id="cert3"
+                      checked={certifications.includes(
+                        "Eco-Friendly Packaging"
+                      )}
+                      onChange={() =>
+                        toggleCertification("Eco-Friendly Packaging")
+                      }
+                    />
+                    <label htmlFor="cert3" className="ml-2">
+                      Eco-Friendly Packaging
+                    </label>
                   </div>
                 </div>
               </div>
@@ -299,7 +403,13 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
         </div>
 
         <div className="flex justify-end gap-4 mt-6">
-          <Button variant="outline" onClick={() => onClose({ submitted: false })} disabled={submitting}>Cancel</Button>
+          <Button
+            variant="outline"
+            onClick={() => onClose({ submitted: false })}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting ? "Registering..." : "Register & Accept Ownership"}
           </Button>

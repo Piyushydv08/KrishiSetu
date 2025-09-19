@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { NavigationHeader } from '@/components/NavigationHeader';
-import { ProductRegistrationForm } from '@/components/ProductRegistrationForm';
+import { useState } from "react";
+import { NavigationHeader } from "@/components/NavigationHeader";
+import { ProductRegistrationForm } from "@/components/ProductRegistrationForm";
 
 export default function ProductRegistration() {
   const [showForm, setShowForm] = useState(true);
@@ -11,7 +11,7 @@ export default function ProductRegistration() {
 
       {/* Floating Modal for Product Registration */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center">
+        <div className="fixed inset-0 z-110 flex items-start justify-center">
           <div
             className="fixed inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => {
@@ -19,9 +19,11 @@ export default function ProductRegistration() {
               window.history.back();
             }}
           />
-          <div className="relative mt-12 max-h-[90vh] w-full max-w-4xl overflow-auto rounded-lg bg-white p-6 shadow-2xl z-50">
+          <div className="relative mt-12 max-h-[90vh] w-full max-w-4xl overflow-visible rounded-lg bg-white p-6 shadow-2xl z-110">
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-foreground">Product Registration</h2>
+              <h2 className="text-3xl font-bold text-foreground">
+                Product Registration
+              </h2>
               <p className="text-muted-foreground mt-1">
                 Register a new product batch and generate QR codes for tracking
               </p>

@@ -2,10 +2,17 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface RetailerProductFormProps {
   isVisible: boolean;
@@ -26,18 +33,21 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({
   onClose,
   transferId,
   productId,
-  productData
+  productData,
 }) => {
   if (!isVisible) return null;
 
   const { firebaseUser } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Initialize form fields with productData if available
   const [name, setName] = useState(productData?.name || "");
   const [category, setCategory] = useState(productData?.category || "");
-  const [description, setDescription] = useState(productData?.description || "");
-  const [quantity, setQuantity] = useState(productData?.quantity || "");
+  const [description, setDescription] = useState(
+    productData?.description || ""
+  );
+  const [quantity, setQuantity] = useState(String(productData?.quantity || ""));
   const [unit, setUnit] = useState(productData?.unit || "");
   const [storeName, setStoreName] = useState("");
   const [storeLocation, setStoreLocation] = useState("");
@@ -53,19 +63,22 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({
       setName(productData.name);
       setCategory(productData.category);
       setDescription(productData.description || "");
-      setQuantity(productData.quantity);
+      setQuantity(String(productData.quantity));
       setUnit(productData.unit);
     }
   }, [productData]);
 
   const toggleCertification = (cert: string) => {
-    setCertifications((prev) => (prev.includes(cert) ? prev.filter((c) => c !== cert) : [...prev, cert]));
+    setCertifications((prev) =>
+      prev.includes(cert) ? prev.filter((c) => c !== cert) : [...prev, cert]
+    );
   };
 
   const validate = () => {
     if (!name.trim()) return "Product name is required";
     if (!category) return "Category is required";
-    if (!quantity.trim()) return "Quantity is required";
+    if (typeof quantity === "string" && !quantity.trim())
+      return "Quantity is required";
     if (!unit) return "Unit is required";
     if (!storeName.trim()) return "Store name is required";
     if (!storeLocation.trim()) return "Store location is required";
@@ -79,12 +92,20 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({
   const handleSubmit = async () => {
     const err = validate();
     if (err) {
-      toast?.({ title: "Validation error", description: err, variant: "destructive" });
+      toast?.({
+        title: "Validation error",
+        description: err,
+        variant: "destructive",
+      });
       return;
     }
 
     if (!firebaseUser) {
-      toast?.({ title: "Not authenticated", description: "Please sign in and try again.", variant: "destructive" });
+      toast?.({
+        title: "Not authenticated",
+        description: "Please sign in and try again.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -126,12 +147,25 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({
       }
 
       const data = await res.json();
-      toast?.({ title: "Success", description: "Product registered and ownership accepted." });
+      toast?.({
+        title: "Success",
+        description: "Product registered and ownership accepted.",
+      });
+
+      // Invalidate queries to refresh registered products
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+
       onClose({ submitted: true, productId: productId ?? data.productId });
     } catch (e: any) {
       console.error("Error submitting retailer registration:", e);
       if (!e?.message) {
-        toast?.({ title: "Error", description: "Failed to register product. Try again.", variant: "destructive" });
+        toast?.({
+          title: "Error",
+          description: "Failed to register product. Try again.",
+          variant: "destructive",
+        });
       }
     } finally {
       setSubmitting(false);
@@ -141,15 +175,19 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
       <div className="mt-12 bg-white p-6 rounded-lg shadow-md max-w-4xl w-full">
-        <h2 className="text-2xl font-bold mb-4">Retailer Product Registration</h2>
-        
+        <h2 className="text-2xl font-bold mb-4">
+          Retailer Product Registration
+        </h2>
+
         {productData && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
             <p className="text-sm text-blue-800">
-              <strong>Existing Product:</strong> {productData.name} ({productData.category})
+              <strong>Existing Product:</strong> {productData.name} (
+              {productData.category})
             </p>
             <p className="text-sm text-blue-800">
-              <strong>Quantity:</strong> {productData.quantity} {productData.unit}
+              <strong>Quantity:</strong> {productData.quantity}{" "}
+              {productData.unit}
             </p>
           </div>
         )}
@@ -161,10 +199,10 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({
             <div className="space-y-4">
               <div>
                 <Label>Product Name *</Label>
-                <Input 
-                  value={name} 
-                  onChange={(e) => setName(e.target.value)} 
-                  placeholder="e.g., Packaged Grains - Retail Pack" 
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g., Packaged Grains - Retail Pack"
                   disabled={!!productData}
                 />
                 {productData && (
@@ -176,7 +214,11 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({
 
               <div>
                 <Label>Category *</Label>
-                <Select value={category} onValueChange={(v) => setCategory(v)} disabled={!!productData}>
+                <Select
+                  value={category}
+                  onValueChange={(v) => setCategory(v)}
+                  disabled={!!productData}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -245,7 +287,9 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({
                   <Input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setPaymentProofFile(e.target.files?.[0] || null)}
+                    onChange={(e) =>
+                      setPaymentProofFile(e.target.files?.[0] || null)
+                    }
                     required
                   />
                   {paymentProofFile && (
@@ -264,29 +308,55 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({
             <div className="space-y-4">
               <div>
                 <Label>Store Name *</Label>
-                <Input value={storeName} onChange={(e) => setStoreName(e.target.value)} placeholder="e.g., Local Mart" />
+                <Input
+                  value={storeName}
+                  onChange={(e) => setStoreName(e.target.value)}
+                  placeholder="e.g., Local Mart"
+                />
               </div>
 
               <div>
                 <Label>Store Location *</Label>
-                <Input value={storeLocation} onChange={(e) => setStoreLocation(e.target.value)} placeholder="City, area..." />
+                <Input
+                  value={storeLocation}
+                  onChange={(e) => setStoreLocation(e.target.value)}
+                  placeholder="City, area..."
+                />
               </div>
 
               <div>
                 <Label>Arrival Date *</Label>
-                <Input type="date" value={arrivalDate} onChange={(e) => setArrivalDate(e.target.value)} />
+                <Input
+                  type="date"
+                  value={arrivalDate}
+                  onChange={(e) => setArrivalDate(e.target.value)}
+                />
               </div>
 
               <div>
                 <Label>Certifications (Optional)</Label>
                 <div className="flex gap-4 mt-2">
                   <div>
-                    <input type="checkbox" id="rcert1" checked={certifications.includes("Retail Certified")} onChange={() => toggleCertification("Retail Certified")} />
-                    <label htmlFor="rcert1" className="ml-2">Retail Certified</label>
+                    <input
+                      type="checkbox"
+                      id="rcert1"
+                      checked={certifications.includes("Retail Certified")}
+                      onChange={() => toggleCertification("Retail Certified")}
+                    />
+                    <label htmlFor="rcert1" className="ml-2">
+                      Retail Certified
+                    </label>
                   </div>
                   <div>
-                    <input type="checkbox" id="rcert2" checked={certifications.includes("Cold Storage")} onChange={() => toggleCertification("Cold Storage")} />
-                    <label htmlFor="rcert2" className="ml-2">Cold Storage</label>
+                    <input
+                      type="checkbox"
+                      id="rcert2"
+                      checked={certifications.includes("Cold Storage")}
+                      onChange={() => toggleCertification("Cold Storage")}
+                    />
+                    <label htmlFor="rcert2" className="ml-2">
+                      Cold Storage
+                    </label>
                   </div>
                 </div>
               </div>
@@ -295,7 +365,13 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({
         </div>
 
         <div className="flex justify-end gap-4 mt-6">
-          <Button variant="outline" onClick={() => onClose({ submitted: false })} disabled={submitting}>Cancel</Button>
+          <Button
+            variant="outline"
+            onClick={() => onClose({ submitted: false })}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting ? "Registering..." : "Register & Accept Ownership"}
           </Button>

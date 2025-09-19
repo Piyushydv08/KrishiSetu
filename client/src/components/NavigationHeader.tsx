@@ -33,10 +33,14 @@ export function NavigationHeader() {
   const [showRetailerForm, setShowRetailerForm] = useState(false);
 
   // pending product id so we can redirect after form submit
-  const [pendingProductIdForRedirect, setPendingProductIdForRedirect] = useState<string | null>(null);
+  const [pendingProductIdForRedirect, setPendingProductIdForRedirect] =
+    useState<string | null>(null);
 
   // store the transfer id & product id for the currently-open form
-  const [currentTransferForForm, setCurrentTransferForForm] = useState<{ transferId?: string; productId?: string } | null>(null);
+  const [currentTransferForForm, setCurrentTransferForForm] = useState<{
+    transferId?: string;
+    productId?: string;
+  } | null>(null);
 
   const [productData, setProductData] = useState<any>(null);
 
@@ -90,7 +94,8 @@ export function NavigationHeader() {
     }
 
     // compute scrollbar width so content doesn't jump
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
     if (scrollbarWidth > 0) {
       document.body.style.paddingRight = `${scrollbarWidth}px`;
     }
@@ -106,8 +111,8 @@ export function NavigationHeader() {
   useEffect(() => {
     if (currentTransferForForm?.productId) {
       fetch(`/api/products/${currentTransferForForm.productId}`)
-        .then(res => res.ok ? res.json() : null)
-        .then(data => setProductData(data))
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => setProductData(data))
         .catch(() => setProductData(null));
     } else {
       setProductData(null);
@@ -145,20 +150,38 @@ export function NavigationHeader() {
               </div>
 
               <div className="hidden md:flex space-x-4 min-w-0 flex-shrink">
-                <Link href="/dashboard" className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground" data-testid="link-dashboard">
+                <Link
+                  href="/dashboard"
+                  className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground"
+                  data-testid="link-dashboard"
+                >
                   Dashboard
                 </Link>
-                <Link href="/qr-scanner" className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground" data-testid="link-scanner">
+                <Link
+                  href="/qr-scanner"
+                  className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground"
+                  data-testid="link-scanner"
+                >
                   QR Scanner
                 </Link>
-                <Link href="/registered-products" className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground" data-testid="link-registered-products">
+                <Link
+                  href="/registered-products"
+                  className="px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground"
+                  data-testid="link-registered-products"
+                >
                   Registered Products
                 </Link>
               </div>
             </div>
 
             <div className="flex items-center gap-3 flex-shrink-0">
-              <Button onClick={() => setLocation("/login")} data-testid="button-login" className="whitespace-nowrap">Sign In/Up</Button>
+              <Button
+                onClick={() => setLocation("/login")}
+                data-testid="button-login"
+                className="whitespace-nowrap"
+              >
+                Sign In/Up
+              </Button>
             </div>
           </div>
         </div>
@@ -167,11 +190,36 @@ export function NavigationHeader() {
   }
 
   const navLinks = [
-    { href: "/dashboard", label: "Dashboard", show: true, testid: "link-dashboard" },
-    { href: "/qr-scanner", label: "QR Scanner", show: true, testid: "link-scanner" },
-    { href: "/registered-products", label: "Registered Products", show: ["farmer", "distributor", "retailer"].includes(user.role), testid: "link-registered-products" },
-    { href: "/scanned-products", label: "Scanned Products", show: user.role === "consumer", testid: "link-scanned-products" },
-    { href: "/request-products", label: "Request Product", show: user.role === "retailer" || user.role === "distributor", testid: "link-request-products" },
+    {
+      href: "/dashboard",
+      label: "Dashboard",
+      show: true,
+      testid: "link-dashboard",
+    },
+    {
+      href: "/qr-scanner",
+      label: "QR Scanner",
+      show: true,
+      testid: "link-scanner",
+    },
+    {
+      href: "/registered-products",
+      label: "Registered Products",
+      show: ["farmer", "distributor", "retailer"].includes(user.role),
+      testid: "link-registered-products",
+    },
+    {
+      href: "/scanned-products",
+      label: "Scanned Products",
+      show: user.role === "consumer",
+      testid: "link-scanned-products",
+    },
+    {
+      href: "/request-products",
+      label: "Request Product",
+      show: user.role === "retailer" || user.role === "distributor",
+      testid: "link-request-products",
+    },
   ];
 
   // Remove notification locally (we assume server has been notified already)
@@ -182,6 +230,7 @@ export function NavigationHeader() {
 
   // Accept ownership: mark read & respond server-side, remove locally, open modal form
   const handleAcceptOwnership = async (notif: any) => {
+    console.log("handleAcceptOwnership called with notif:", notif);
     if (!firebaseUser) return;
     try {
       const idToken = await firebaseUser.getIdToken();
@@ -214,8 +263,17 @@ export function NavigationHeader() {
       setPendingProductIdForRedirect(notif.productId ?? null);
 
       // set current transfer info for the modal form (transferId might be in notif.transferId or notif.id)
+      const transferId = notif.transferId ?? notif.id;
+      console.log(
+        "Setting transferId:",
+        transferId,
+        "from notif.transferId:",
+        notif.transferId,
+        "or notif.id:",
+        notif.id
+      );
       setCurrentTransferForForm({
-        transferId: notif.transferId ?? notif.id,
+        transferId: transferId,
         productId: notif.productId,
       });
 
@@ -257,7 +315,10 @@ export function NavigationHeader() {
       // remove locally
       removeNotificationLocal(notif.id);
 
-      toast({ title: "Request rejected", description: "You rejected the ownership request." });
+      toast({
+        title: "Request rejected",
+        description: "You rejected the ownership request.",
+      });
     } catch (err) {
       console.error("Error rejecting ownership:", err);
       toast({
@@ -304,7 +365,10 @@ export function NavigationHeader() {
   };
 
   // When form modal closes. result?: { submitted?: boolean, productId?: string }
-  const handleFormClose = (result?: { submitted?: boolean; productId?: string }) => {
+  const handleFormClose = (result?: {
+    submitted?: boolean;
+    productId?: string;
+  }) => {
     setShowDistributorForm(false);
     setShowRetailerForm(false);
 
@@ -363,9 +427,17 @@ export function NavigationHeader() {
 
             {/* Right: Notifications, user menu, mobile toggle */}
             <div className="flex items-center gap-3 flex-shrink-0">
-              <DropdownMenu open={notifDropdownOpen} onOpenChange={setNotifDropdownOpen}>
+              <DropdownMenu
+                open={notifDropdownOpen}
+                onOpenChange={setNotifDropdownOpen}
+              >
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative"
+                    data-testid="button-notifications"
+                  >
                     <Bell className="h-5 w-5" />
                     {notificationCount > 0 && (
                       <span
@@ -378,11 +450,16 @@ export function NavigationHeader() {
                   </Button>
                 </DropdownMenuTrigger>
 
-                <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-auto">
+                <DropdownMenuContent
+                  align="end"
+                  className="w-80 max-h-96 overflow-auto"
+                >
                   <div className="p-2 font-semibold">Notifications</div>
                   <DropdownMenuSeparator />
                   {sortedNotifications.length === 0 ? (
-                    <div className="p-4 text-center text-muted-foreground text-sm">No new notifications.</div>
+                    <div className="p-4 text-center text-muted-foreground text-sm">
+                      No new notifications.
+                    </div>
                   ) : (
                     sortedNotifications.map((notif) => {
                       const isOwnership =
@@ -393,23 +470,43 @@ export function NavigationHeader() {
                       if (isOwnership) {
                         // Ownership notifications: keep them until Accept/Reject
                         return (
-                          <div key={notif.id} className="p-3 border-b last:border-b-0">
+                          <div
+                            key={notif.id}
+                            className="p-3 border-b last:border-b-0"
+                          >
                             <div className="flex justify-between items-start gap-2">
                               <div className="flex-1 min-w-0">
-                                <div className="font-medium truncate">{notif.title}</div>
-                                <div className="text-xs text-muted-foreground truncate">{notif.message}</div>
-                                <div className="text-xs text-muted-foreground">{new Date(notif.createdAt).toLocaleString()}</div>
+                                <div className="font-medium truncate">
+                                  {notif.title}
+                                </div>
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {notif.message}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {new Date(notif.createdAt).toLocaleString()}
+                                </div>
                               </div>
                               <div className="flex flex-col items-end gap-2 ml-2">
                                 <div className="flex gap-2">
-                                  <Button size="sm" onClick={() => handleAcceptOwnership(notif)} data-testid={`button-accept-${notif.id}`}>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleAcceptOwnership(notif)}
+                                    data-testid={`button-accept-${notif.id}`}
+                                  >
                                     Accept
                                   </Button>
-                                  <Button size="sm" variant="outline" onClick={() => handleRejectOwnership(notif)} data-testid={`button-reject-${notif.id}`}>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleRejectOwnership(notif)}
+                                    data-testid={`button-reject-${notif.id}`}
+                                  >
                                     Reject
                                   </Button>
                                 </div>
-                                <span className="text-xs text-accent">Pending</span>
+                                <span className="text-xs text-accent">
+                                  Pending
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -418,11 +515,17 @@ export function NavigationHeader() {
 
                       // Default notification item - non-ownership
                       return (
-                        <DropdownMenuItem key={notif.id} onClick={() => handleNotificationClick(notif)} style={{ cursor: "pointer" }}>
+                        <DropdownMenuItem
+                          key={notif.id}
+                          onClick={() => handleNotificationClick(notif)}
+                          style={{ cursor: "pointer" }}
+                        >
                           <div>
                             <div className="font-medium">{notif.title}</div>
                             <div className="text-xs">{notif.message}</div>
-                            <div className="text-xs text-muted-foreground">{new Date(notif.createdAt).toLocaleString()}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(notif.createdAt).toLocaleString()}
+                            </div>
                           </div>
                         </DropdownMenuItem>
                       );
@@ -433,16 +536,33 @@ export function NavigationHeader() {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted" data-testid="button-user-menu">
+                  <Button
+                    variant="ghost"
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted"
+                    data-testid="button-user-menu"
+                  >
                     <Avatar className="w-8 h-8">
-                      <AvatarImage src={firebaseUser.photoURL || undefined} alt={user.name} />
-                      <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                      <AvatarImage
+                        src={firebaseUser.photoURL || undefined}
+                        alt={user.name}
+                      />
+                      <AvatarFallback>
+                        {user.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
                     </Avatar>
                     <div className="hidden md:block text-left max-w-[120px] truncate">
-                      <div className="text-sm font-medium text-foreground truncate" data-testid="text-user-name" title={user.name}>
+                      <div
+                        className="text-sm font-medium text-foreground truncate"
+                        data-testid="text-user-name"
+                        title={user.name}
+                      >
                         {user.name}
                       </div>
-                      <div className="text-xs text-muted-foreground truncate" data-testid="text-user-role" title={user.role}>
+                      <div
+                        className="text-xs text-muted-foreground truncate"
+                        data-testid="text-user-role"
+                        title={user.role}
+                      >
                         {user.role}
                       </div>
                     </div>
@@ -451,13 +571,20 @@ export function NavigationHeader() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
                   <Link href="/profile">
-                    <DropdownMenuItem className="cursor-pointer" data-testid="menu-profile">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      data-testid="menu-profile"
+                    >
                       <User className="mr-2 h-4 w-4" />
                       Profile
                     </DropdownMenuItem>
                   </Link>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout} className="cursor-pointer" data-testid="menu-logout">
+                  <DropdownMenuItem
+                    onClick={logout}
+                    className="cursor-pointer"
+                    data-testid="menu-logout"
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
                   </DropdownMenuItem>
@@ -465,7 +592,13 @@ export function NavigationHeader() {
               </DropdownMenu>
 
               <div className="md:hidden">
-                <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Toggle menu" data-testid="button-mobile-menu">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  aria-label="Toggle menu"
+                  data-testid="button-mobile-menu"
+                >
                   <Menu className="w-6 h-6" />
                 </Button>
               </div>
@@ -510,7 +643,7 @@ export function NavigationHeader() {
               setCurrentTransferForForm(null);
             }}
           />
-          
+
           {/* modal panel — will not shift page content; centered, scrollable if tall */}
           <div className="relative mt-12 mb-12 mx-4 max-h-[90vh] w-full max-w-4xl overflow-auto rounded-lg bg-white p-6 shadow-2xl z-[121]">
             {showDistributorForm && currentTransferForForm && (

@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { ProductSearch } from "@/components/ProductSearch";
 import { Product } from "@shared/schema";
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
 
 interface Owner {
   id: string;
@@ -89,7 +91,10 @@ export default function RequestProductsPage() {
             details[product.ownerId] = await ownerRes.json();
           }
         } catch (error) {
-          console.error(`Error fetching data for product ${product.id}:`, error);
+          console.error(
+            `Error fetching data for product ${product.id}:`,
+            error
+          );
           map[product.id] = [];
         }
       }
@@ -120,7 +125,9 @@ export default function RequestProductsPage() {
 
       if (!res.ok) throw new Error("Failed to request ownership");
 
-      toast.success("Ownership request sent! The current owner will be notified.");
+      toast.success(
+        "Ownership request sent! The current owner will be notified."
+      );
     } catch (error) {
       console.error("Error requesting ownership:", error);
       toast.error("Could not request ownership");
@@ -128,10 +135,9 @@ export default function RequestProductsPage() {
   };
 
   // Filter products if a product is selected from search
-  const filteredProducts =
-    selectedProduct
-      ? products.filter((p) => p.id === selectedProduct.id)
-      : products;
+  const filteredProducts = selectedProduct
+    ? products.filter((p) => p.id === selectedProduct.id)
+    : products;
 
   if (user?.role !== "retailer" && user?.role !== "distributor") {
     return (
@@ -156,10 +162,11 @@ export default function RequestProductsPage() {
             placeholder="Search products by name, category, farm, or batch ID..."
             selectedProduct={selectedProduct}
             onClearSelection={() => setSelectedProduct(null)}
-            searchEndpoint="/api/products/available/search" 
-            />
+            searchEndpoint="/api/products/available/search"
+          />
           <p className="mt-4 mb-2 text-muted-foreground text-center text-lg max-w-xl">
-            Browse products available from all users and request ownership transfer.
+            Browse products available from all users and request ownership
+            transfer.
           </p>
         </div>
 
@@ -230,7 +237,9 @@ export default function RequestProductsPage() {
 
                       {/* Current owner information */}
                       <div className="mt-4">
-                        <span className="font-semibold text-sm">Current Owner:</span>
+                        <span className="font-semibold text-sm">
+                          Current Owner:
+                        </span>
                         <div className="text-sm">
                           {currentOwner
                             ? `${currentOwner.name} (${currentOwner.role})`
@@ -241,7 +250,9 @@ export default function RequestProductsPage() {
                       {/* Ownership history */}
                       {owners.length > 0 && (
                         <div className="mt-2">
-                          <span className="font-semibold text-sm">Ownership History:</span>
+                          <span className="font-semibold text-sm">
+                            Ownership History:
+                          </span>
                           <ul className="ml-4 list-disc text-xs">
                             {owners.map((owner) => (
                               <li key={owner.id}>
@@ -253,13 +264,20 @@ export default function RequestProductsPage() {
                       )}
                     </div>
 
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-row gap-2">
                       <button
                         className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
                         onClick={() => handleRequestOwnership(product.id)}
                       >
                         Request Ownership
                       </button>
+                      <Link
+                        href={`/product/${product.id}?from=request-products`}
+                      >
+                        <Button size="sm" variant="outline">
+                          View Details
+                        </Button>
+                      </Link>
                     </div>
                   </div>
                 </CardContent>

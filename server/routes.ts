@@ -521,7 +521,15 @@ app.put("/api/ownership-transfers/:id/accept", upload.single("paymentProof"), as
   const transferId = req.params.id;
   const firebaseUid = req.header("firebase-uid") || req.header("x-firebase-uid");
 
+  console.log("Accept ownership transfer called");
+  console.log("transferId:", transferId);
+  console.log("firebaseUid:", firebaseUid);
+  console.log("req.headers:", req.headers);
+  console.log("req.body:", req.body);
+  console.log("req.file:", req.file);
+
   if (!firebaseUid) {
+    console.log("No firebaseUid");
     return res.status(401).json({ message: "Unauthorized" });
   }
 
@@ -531,7 +539,7 @@ app.put("/api/ownership-transfers/:id/accept", upload.single("paymentProof"), as
   // Define all possible form fields that might be submitted
   const possibleFormFields = [
     "name", "category", "description", "quantity", "unit",
-    "distributorName", "warehouseLocation", "dispatchDate", 
+    "distributorName", "warehouseLocation", "dispatchDate",
     "certifications", "price", "paymentProofUrl",
     "storeName", "storeLocation", "arrivalDate"
   ];
@@ -547,6 +555,9 @@ app.put("/api/ownership-transfers/:id/accept", upload.single("paymentProof"), as
       registeredFields.push(field);
     }
   }
+
+  console.log("filledFields:", filledFields);
+  console.log("registeredFields:", registeredFields);
 
   // Parse certifications if sent as JSON string
   if (filledFields.certifications && typeof filledFields.certifications === "string") {
@@ -574,26 +585,36 @@ app.put("/api/ownership-transfers/:id/accept", upload.single("paymentProof"), as
   }
 
   try {
+    console.log("Getting user by firebaseUid");
     const user = await storage.getUserByFirebaseUid(firebaseUid);
+    console.log("User found:", user ? user.id : "null");
     if (!user) return res.status(404).json({ message: "User not found" });
 
+    console.log("Getting transfer by id");
     const transfer = await storage.getOwnershipTransfer(transferId);
+    console.log("Transfer found:", transfer ? transfer.id : "null");
     if (!transfer) return res.status(404).json({ message: "Transfer not found" });
 
+    console.log("Checking if user is recipient:", transfer.toUserId === user.id);
     if (transfer.toUserId !== user.id) {
       return res.status(403).json({ message: "You are not the recipient of this transfer" });
     }
 
+    console.log("Checking transfer status:", transfer.status);
     if (transfer.status !== "pending") {
       if (transfer.status === "completed") return res.json({ message: "Transfer already completed" });
       return res.status(400).json({ message: "Transfer is not pending" });
     }
 
+    console.log("Getting product");
     const product = await storage.getProduct(transfer.productId);
+    console.log("Product found:", product ? product.id : "null");
     if (!product) return res.status(404).json({ message: "Product not found" });
 
     // Verify ownership chain integrity before allowing transfer
+    console.log("Verifying ownership chain");
     const verificationResult = await storage.verifyOwnershipChain(product.id);
+    console.log("Verification result:", verificationResult);
     if (!verificationResult.valid) {
       return res.status(400).json({
         message: "Cannot transfer ownership: Blockchain integrity compromised",
@@ -602,12 +623,15 @@ app.put("/api/ownership-transfers/:id/accept", upload.single("paymentProof"), as
     }
 
     // 1) Update transfer status -> completed
+    console.log("Updating transfer status");
     await storage.updateOwnershipTransfer(transferId, { status: "completed" });
 
     // 2) Update product with the filled fields
+    console.log("Updating product");
     await storage.updateProduct(product.id, { ownerId: user.id, ...filledFields });
 
     // 3) Add to product owners blockchain
+    console.log("Adding product owner");
     const newOwnerBlock = await storage.addProductOwner(
       {
         productId: product.id,
@@ -623,6 +647,7 @@ app.put("/api/ownership-transfers/:id/accept", upload.single("paymentProof"), as
     );
 
     // 4) Create notification for previous owner
+    console.log("Creating notification for previous owner");
     await storage.createNotification(
       {
         userId: transfer.fromUserId,
@@ -635,11 +660,12 @@ app.put("/api/ownership-transfers/:id/accept", upload.single("paymentProof"), as
         createdAt: new Date(),
       }
     );
-    
+
     // Fetch previous owner info
     const previousOwner = await storage.getUser(transfer.fromUserId);
-    
+
     // In your backend endpoint, update the logProductEvent call:
+    console.log("Logging product event");
     await storage.logProductEvent(
       product.id,
       "ownership_registration",
@@ -657,6 +683,7 @@ app.put("/api/ownership-transfers/:id/accept", upload.single("paymentProof"), as
       }
     );
 
+    console.log("Returning success");
     return res.json({
       message: "Ownership transfer completed successfully",
       ownershipBlock: {
