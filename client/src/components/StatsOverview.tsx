@@ -13,7 +13,8 @@ import {
 
 export function StatsOverview() {
   const { user } = useAuth();
-  const { data: stats, isLoading, error } = useStats(user?.id || undefined);
+  const userId = user && user.role !== "consumer" ? user.id : undefined;
+  const { data: stats, isLoading, error } = useStats(userId);
 
   console.log("StatsOverview - user:", user?.id, "stats:", stats);
 
@@ -49,85 +50,92 @@ export function StatsOverview() {
     return null;
   }
 
-  console.log("Rendering stats:", stats.totalProducts, stats.verifiedBatches, stats.activeShipments, stats.averageQualityScore);
+  console.log(
+    "Rendering stats:",
+    stats.totalProducts,
+    stats.verifiedBatches,
+    stats.activeShipments,
+    stats.averageQualityScore
+  );
 
-  const statCards = user
-    ? [
-        {
-          label: "My Products",
-          value: (stats.totalProducts ?? 0).toLocaleString(),
-          icon: Package,
-          trend: "Registered by you",
-          trendIcon: Package,
-          iconBg: "bg-primary/10",
-          iconColor: "text-primary",
-        },
-        {
-          label: "Active Transfers",
-          value: (stats.activeTransfers ?? 0).toLocaleString(),
-          icon: ArrowRightLeft,
-          trend: "In progress",
-          trendIcon: ArrowRightLeft,
-          iconBg: "bg-accent/10",
-          iconColor: "text-accent",
-        },
-        {
-          label: "Completed Transfers",
-          value: (stats.completedTransfers ?? 0).toLocaleString(),
-          icon: ShieldCheck,
-          trend: "Successfully completed",
-          trendIcon: ShieldCheck,
-          iconBg: "bg-verified/10",
-          iconColor: "text-verified",
-        },
-        {
-          label: "Average Rating",
-          value: `${(stats.averageRating ?? 0).toFixed(1)}/5`,
-          icon: Medal,
-          trend: "User rating",
-          trendIcon: Medal,
-          iconBg: "bg-warning/10",
-          iconColor: "text-warning",
-        },
-      ]
-    : [
-        {
-          label: "Total Products",
-          value: (stats.totalProducts ?? 0).toLocaleString(),
-          icon: Package,
-          trend: "+12% from last month",
-          trendIcon: TrendingUp,
-          iconBg: "bg-primary/10",
-          iconColor: "text-primary",
-        },
-        {
-          label: "Verified Batches",
-          value: (stats.verifiedBatches ?? 0).toLocaleString(),
-          icon: ShieldCheck,
-          trend: "100% blockchain verified",
-          trendIcon: ShieldCheck,
-          iconBg: "bg-verified/10",
-          iconColor: "text-verified",
-        },
-        {
-          label: "Active Shipments",
-          value: (stats.activeShipments ?? 0).toLocaleString(),
-          icon: Truck,
-          trend: "23 arriving today",
-          trendIcon: Truck,
-          iconBg: "bg-accent/10",
-          iconColor: "text-accent",
-        },
-        {
-          label: "Quality Score",
-          value: `${(stats.averageQualityScore ?? 0).toFixed(1)}%`,
-          icon: Medal,
-          trend: "Excellent rating",
-          trendIcon: Medal,
-          iconBg: "bg-verified/10",
-          iconColor: "text-verified",
-        },
-      ];
+  const statCards =
+    user && user.role !== "consumer"
+      ? [
+          {
+            label: "My Products",
+            value: (stats.totalProducts ?? 0).toLocaleString(),
+            icon: Package,
+            trend: "Registered by you",
+            trendIcon: Package,
+            iconBg: "bg-primary/10",
+            iconColor: "text-primary",
+          },
+          {
+            label: "Active Transfers",
+            value: (stats.activeTransfers ?? 0).toLocaleString(),
+            icon: ArrowRightLeft,
+            trend: "In progress",
+            trendIcon: ArrowRightLeft,
+            iconBg: "bg-accent/10",
+            iconColor: "text-accent",
+          },
+          {
+            label: "Completed Transfers",
+            value: (stats.completedTransfers ?? 0).toLocaleString(),
+            icon: ShieldCheck,
+            trend: "Successfully completed",
+            trendIcon: ShieldCheck,
+            iconBg: "bg-verified/10",
+            iconColor: "text-verified",
+          },
+          {
+            label: "Average Rating",
+            value: `${(stats.averageRating ?? 0).toFixed(1)}/5`,
+            icon: Medal,
+            trend: "User rating",
+            trendIcon: Medal,
+            iconBg: "bg-warning/10",
+            iconColor: "text-warning",
+          },
+        ]
+      : [
+          {
+            label: "Total Products",
+            value: (stats.totalProducts ?? 0).toLocaleString(),
+            icon: Package,
+            trend: "+12% from last month",
+            trendIcon: TrendingUp,
+            iconBg: "bg-primary/10",
+            iconColor: "text-primary",
+          },
+          {
+            label: "Verified Batches",
+            value: (stats.verifiedBatches ?? 0).toLocaleString(),
+            icon: ShieldCheck,
+            trend: "100% blockchain verified",
+            trendIcon: ShieldCheck,
+            iconBg: "bg-verified/10",
+            iconColor: "text-verified",
+          },
+          {
+            label: "Active Shipments",
+            value: (stats.activeShipments ?? 0).toLocaleString(),
+            icon: Truck,
+            trend: "23 arriving today",
+            trendIcon: Truck,
+            iconBg: "bg-accent/10",
+            iconColor: "text-accent",
+          },
+          {
+            label: "Quality Score",
+            value: `${(stats.averageQualityScore ?? 0).toFixed(1)}%`,
+            icon: Medal,
+            trend: "Excellent rating",
+            trendIcon: Medal,
+            iconBg: "bg-verified/10",
+            iconColor: "text-verified",
+          },
+        ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

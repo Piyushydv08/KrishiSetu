@@ -3,7 +3,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useProductByBatch } from "@/hooks/useProducts";
-import { Camera, StopCircle, AlertTriangle, FlipHorizontal } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  Camera,
+  StopCircle,
+  AlertTriangle,
+  FlipHorizontal,
+} from "lucide-react";
 import { useLocation } from "wouter";
 import { BrowserQRCodeReader, IScannerControls } from "@zxing/browser";
 
@@ -11,8 +17,12 @@ export function QRCodeScanner() {
   const [isScanning, setIsScanning] = useState(false);
   const [scannedBatchId, setScannedBatchId] = useState<string>("");
   const [scanError, setScanError] = useState<string | null>(null);
-  const [cameraStatus, setCameraStatus] = useState<"idle" | "pending" | "granted" | "denied" | "notfound">("idle");
-  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
+  const [cameraStatus, setCameraStatus] = useState<
+    "idle" | "pending" | "granted" | "denied" | "notfound"
+  >("idle");
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>(
+    []
+  );
   const [selectedCamera, setSelectedCamera] = useState<string>("");
   const [, navigate] = useLocation();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -20,6 +30,7 @@ export function QRCodeScanner() {
   const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: product, isLoading, error } = useProductByBatch(scannedBatchId);
 
@@ -36,24 +47,35 @@ export function QRCodeScanner() {
       setCameraStatus("granted");
 
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      const videoDevices = devices.filter(
+        (device) => device.kind === "videoinput"
+      );
       setAvailableCameras(videoDevices);
 
       // Set default camera (prefer rear camera if available)
       if (videoDevices.length > 0) {
-        const rearCamera = videoDevices.find(device =>
-          device.label.toLowerCase().includes('back') ||
-          device.label.toLowerCase().includes('rear')
+        const rearCamera = videoDevices.find(
+          (device) =>
+            device.label.toLowerCase().includes("back") ||
+            device.label.toLowerCase().includes("rear")
         );
-        setSelectedCamera(rearCamera ? rearCamera.deviceId : videoDevices[0].deviceId);
+        setSelectedCamera(
+          rearCamera ? rearCamera.deviceId : videoDevices[0].deviceId
+        );
       } else {
         setCameraStatus("notfound");
         setIsScanning(false);
       }
     } catch (err: any) {
-      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+      if (
+        err.name === "NotAllowedError" ||
+        err.name === "PermissionDeniedError"
+      ) {
         setCameraStatus("denied");
-      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+      } else if (
+        err.name === "NotFoundError" ||
+        err.name === "DevicesNotFoundError"
+      ) {
         setCameraStatus("notfound");
       } else {
         setCameraStatus("denied");
@@ -64,7 +86,13 @@ export function QRCodeScanner() {
 
   // Scanning logic moved to useEffect
   useEffect(() => {
-    if (!isScanning || cameraStatus !== "granted" || !selectedCamera || !videoRef.current) return;
+    if (
+      !isScanning ||
+      cameraStatus !== "granted" ||
+      !selectedCamera ||
+      !videoRef.current
+    )
+      return;
 
     codeReaderRef.current = new BrowserQRCodeReader();
 
@@ -105,11 +133,11 @@ export function QRCodeScanner() {
             const urlMatch = trimmedText.match(/\/product\/([a-f0-9\-]+)$/i);
             if (urlMatch) {
               batchId = urlMatch[1];
-            } else if (trimmedText.includes('/product/')) {
+            } else if (trimmedText.includes("/product/")) {
               // Handle partial URLs
-              const parts = trimmedText.split('/product/');
+              const parts = trimmedText.split("/product/");
               if (parts.length > 1) {
-                batchId = parts[1].split('/')[0]; // Take only the batch ID part
+                batchId = parts[1].split("/")[0]; // Take only the batch ID part
               }
             }
 
@@ -130,10 +158,13 @@ export function QRCodeScanner() {
       .catch((error) => {
         toast({
           title: "Camera Error",
-          description: "Unable to access camera. Please ensure camera permissions are granted.",
+          description:
+            "Unable to access camera. Please ensure camera permissions are granted.",
           variant: "destructive",
         });
-        setScanError("Unable to access camera. Please ensure camera permissions are granted.");
+        setScanError(
+          "Unable to access camera. Please ensure camera permissions are granted."
+        );
         setIsScanning(false);
         console.error("Camera error:", error);
       });
@@ -174,7 +205,9 @@ export function QRCodeScanner() {
   // Switch between front and rear cameras (only when scanning)
   const switchCamera = () => {
     if (!isScanning || availableCameras.length < 2) return;
-    const currentIndex = availableCameras.findIndex(cam => cam.deviceId === selectedCamera);
+    const currentIndex = availableCameras.findIndex(
+      (cam) => cam.deviceId === selectedCamera
+    );
     const nextIndex = (currentIndex + 1) % availableCameras.length;
     setSelectedCamera(availableCameras[nextIndex].deviceId);
   };
@@ -216,14 +249,42 @@ export function QRCodeScanner() {
 
   // Navigate to product details when product is found
   useEffect(() => {
+    async function saveScannedProduct() {
+      if (user && user.role === "consumer" && product) {
+        try {
+          const response = await fetch("/api/scans", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "firebase-uid": user.firebaseUid,
+            },
+            body: JSON.stringify({
+              productId: product.id,
+              userId: user.id,
+              timestamp: new Date(),
+            }),
+          });
+          if (!response.ok) {
+            throw new Error("Failed to save scanned product");
+          }
+        } catch (error) {
+          console.error("Error saving scanned product:", error);
+        }
+      }
+    }
+
     if (product && !isLoading && !error) {
+      saveScannedProduct();
       navigate(`/product/${product.id}`);
       toast({
         title: "Product Found!",
         description: `${product.name} - ${product.batchId}`,
       });
     } else if (error && scannedBatchId) {
-      if (error.message?.includes("not found") || error.message?.includes("404")) {
+      if (
+        error.message?.includes("not found") ||
+        error.message?.includes("404")
+      ) {
         setScanError(`No product found with batch ID: ${scannedBatchId}`);
         toast({
           title: "Product Not Found",
@@ -241,7 +302,7 @@ export function QRCodeScanner() {
       setScannedBatchId("");
     }
     // eslint-disable-next-line
-  }, [product, isLoading, error, navigate, toast, scannedBatchId]);
+  }, [product, isLoading, error, navigate, toast, scannedBatchId, user]);
 
   // Clean up on unmount
   useEffect(() => {
@@ -261,7 +322,8 @@ export function QRCodeScanner() {
       )}
       {cameraStatus === "denied" && (
         <div className="text-center text-red-600 mb-4">
-          Camera access denied. Please allow camera permission in your browser settings.
+          Camera access denied. Please allow camera permission in your browser
+          settings.
         </div>
       )}
       {cameraStatus === "notfound" && (
