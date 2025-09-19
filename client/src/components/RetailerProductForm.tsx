@@ -74,6 +74,12 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({
     );
   };
 
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose({ submitted: false });
+    }
+  };
+
   const validate = () => {
     if (!name.trim()) return "Product name is required";
     if (!category) return "Category is required";
@@ -129,8 +135,8 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({
       formData.append("productId", productId || "");
       formData.append("transferId", transferId || "");
 
-      const res = await fetch(`/api/ownership-transfers/${transferId}/accept`, {
-        method: "PUT",
+      const res = await fetch(`/api/ownership-transfers/${transferId}/complete-registration`, {
+        method: "POST",
         headers: {
           "firebase-uid": firebaseUser.uid,
           Authorization: `Bearer ${idToken}`,
@@ -173,8 +179,14 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
-      <div className="mt-12 bg-white p-6 rounded-lg shadow-md max-w-4xl w-full">
+    <div 
+      className="fixed inset-0 z-50 flex items-start justify-center p-6 bg-black bg-opacity-50 overflow-y-auto"
+      onClick={handleOverlayClick}
+    >
+      <div 
+        className="mt-12 bg-white p-6 rounded-lg shadow-md max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-2xl font-bold mb-4">
           Retailer Product Registration
         </h2>

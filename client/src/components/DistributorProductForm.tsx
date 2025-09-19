@@ -73,6 +73,12 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
     );
   };
 
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose({ submitted: false });
+    }
+  };
+
   const validate = () => {
     if (!name.trim()) return "Product name is required";
     if (!category) return "Category is required";
@@ -136,7 +142,6 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
       formData.append("transferId", transferId || "");
 
       console.log("FormData entries:");
-      // Use Array.from to avoid TS iteration error
       Array.from(formData.entries()).forEach(([key, value]) => {
         console.log(key, value);
       });
@@ -168,7 +173,6 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
         description: "Product registered and ownership accepted.",
       });
 
-      // Invalidate queries to refresh registered products
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
@@ -189,8 +193,14 @@ export const DistributorProductForm: React.FC<DistributorProductFormProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
-      <div className="mt-12 bg-white p-6 rounded-lg shadow-md max-w-4xl w-full">
+    <div 
+      className="fixed inset-0 z-50 flex items-start justify-center p-6 bg-black bg-opacity-50 overflow-y-auto"
+      onClick={handleOverlayClick}
+    >
+      <div 
+        className="mt-12 bg-white p-6 rounded-lg shadow-md max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-2xl font-bold mb-4">
           Distributor Product Registration
         </h2>
