@@ -135,8 +135,8 @@ export const RetailerProductForm: React.FC<RetailerProductFormProps> = ({
       formData.append("productId", productId || "");
       formData.append("transferId", transferId || "");
 
-      const res = await fetch(`/api/ownership-transfers/${transferId}/complete-registration`, {
-        method: "POST",
+      const res = await fetch(`/api/ownership-transfers/${transferId}/accept`, {
+        method: "PUT",
         headers: {
           "firebase-uid": firebaseUser.uid,
           Authorization: `Bearer ${idToken}`,

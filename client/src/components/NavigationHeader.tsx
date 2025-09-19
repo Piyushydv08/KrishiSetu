@@ -1,4 +1,3 @@
-// src/components/NavigationHeader.tsx
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,6 @@ import { useToast } from "@/hooks/use-toast";
 // IMPORT your form components (update paths if needed)
 import { DistributorProductForm } from "./DistributorProductForm";
 import { RetailerProductForm } from "./RetailerProductForm";
-import { OwnershipManagementPanel } from "./OwnershipManagementPanel";
 
 export function NavigationHeader() {
   const [location, setLocation] = useLocation();
@@ -32,7 +30,6 @@ export function NavigationHeader() {
   // modal states (we'll show forms as overlays)
   const [showDistributorForm, setShowDistributorForm] = useState(false);
   const [showRetailerForm, setShowRetailerForm] = useState(false);
-  const [showTransferOwnershipForm, setShowTransferOwnershipForm] = useState(false);
 
   // pending product id so we can redirect after form submit
   const [pendingProductIdForRedirect, setPendingProductIdForRedirect] =
@@ -42,12 +39,6 @@ export function NavigationHeader() {
   const [currentTransferForForm, setCurrentTransferForForm] = useState<{
     transferId?: string;
     productId?: string;
-  } | null>(null);
-
-  // store data for pre-filled transfer form
-  const [transferFormData, setTransferFormData] = useState<{
-    productId?: string;
-    toUserId?: string;
   } | null>(null);
 
   const [productData, setProductData] = useState<any>(null);
@@ -94,7 +85,7 @@ export function NavigationHeader() {
 
   // Prevent background scroll & avoid layout shift when modal opens.
   useEffect(() => {
-    const modalOpen = showDistributorForm || showRetailerForm || showTransferOwnershipForm;
+    const modalOpen = showDistributorForm || showRetailerForm;
     if (!modalOpen) {
       document.body.style.overflow = "";
       document.body.style.paddingRight = "";
@@ -113,7 +104,7 @@ export function NavigationHeader() {
       document.body.style.overflow = "";
       document.body.style.paddingRight = "";
     };
-  }, [showDistributorForm, showRetailerForm, showTransferOwnershipForm]);
+  }, [showDistributorForm, showRetailerForm]);
 
   // When opening the modal, fetch product data if productId exists
   useEffect(() => {
@@ -236,8 +227,9 @@ export function NavigationHeader() {
     setNotificationCount((prev) => Math.max(0, prev - 1));
   };
 
-  // Accept ownership: mark read & respond server-side, remove locally, open transfer form
+  // Accept ownership: mark read & respond server-side, remove locally, open modal form
   const handleAcceptOwnership = async (notif: any) => {
+    console.log("handleAcceptOwnership called with notif:", notif);
     if (!firebaseUser) return;
     try {
       const idToken = await firebaseUser.getIdToken();
@@ -252,27 +244,52 @@ export function NavigationHeader() {
         },
       });
 
-      // Set the transfer data to open the ownership transfer form
-      setCurrentTransferForForm({
-        transferId: notif.transferId,
-        productId: notif.productId
+      // tell backend we accepted the invitation (this keeps server in sync)
+      await fetch(`/api/notifications/${notif.id}/respond`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "firebase-uid": user?.firebaseUid || "",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ action: "accepted", role: user.role }),
       });
-      setTransferFormData({
-        productId: notif.productId,
-        toUserId: notif.fromUserId // prefill with requester if available
-      });
-
-      // Open the ownership transfer form for the current owner
-      setShowTransferOwnershipForm(true);
 
       // remove locally from dropdown
       removeNotificationLocal(notif.id);
 
+      // remember productId & transferId for redirect and for the form to use
+      setPendingProductIdForRedirect(notif.productId ?? null);
+
+      // set current transfer info for the modal form (transferId might be in notif.transferId or notif.id)
+      const transferId = notif.transferId ?? notif.id;
+      console.log(
+        "Setting transferId:",
+        transferId,
+        "from notif.transferId:",
+        notif.transferId,
+        "or notif.id:",
+        notif.id
+      );
+      setCurrentTransferForForm({
+        transferId: transferId,
+        productId: notif.productId,
+      });
+
+      // OPEN modal (instead of navigating to page)
+      if (user.role === "distributor") {
+        setShowDistributorForm(true);
+      } else if (user.role === "retailer") {
+        setShowRetailerForm(true);
+      } else {
+        // fallback: go to product page
+        if (notif.productId) setLocation(`/product/${notif.productId}`);
+      }
     } catch (err) {
       console.error(err);
       toast({
         title: "Action failed",
-        description: "Could not process ownership request. Try again.",
+        description: "Could not accept ownership at the moment. Try again.",
         variant: "destructive",
       });
     }
@@ -311,54 +328,20 @@ export function NavigationHeader() {
     }
   };
 
-  // Handle notification click for transfer completion notifications
+  // Default click behaviour for non-ownership notifications:
+  // mark read server-side and navigate to product page.
+  // For ownership notifications, DO NOT mark read or remove here — the user must Accept/Reject.
   const handleNotificationClick = async (notif: any) => {
-    const isOwnershipRequest = notif.type === "ownership_request";
-    const isTransferComplete = notif.type === "transfer_complete";
-    const isOwnershipAccepted = notif.type === "ownership_request_accepted";
+    const isOwnership =
+      notif.type === "ownership_request" ||
+      notif.requestType === "ownership" ||
+      notif.ownershipRequest === true;
 
-    // Handle ownership request notifications (for current owner)
-    if (isOwnershipRequest) {
-      // Keep in notifications until Accept/Reject
+    if (isOwnership) {
+      // keep it until explicit Accept/Reject
       return;
     }
 
-    // Handle transfer complete notifications (for requester)
-    if (isTransferComplete || isOwnershipAccepted) {
-      try {
-        // Mark as read
-        await fetch(`/api/notifications/${notif.id}/read`, {
-          method: "PUT",
-          headers: {
-            "firebase-uid": user?.firebaseUid || "",
-            "Content-Type": "application/json",
-          },
-        });
-
-        removeNotificationLocal(notif.id);
-
-        // Open appropriate registration form based on user role
-        if (notif.productId) {
-          setCurrentTransferForForm({
-            transferId: notif.transferId,
-            productId: notif.productId
-          });
-
-          if (user?.role === "distributor") {
-            setShowDistributorForm(true);
-          } else if (user?.role === "retailer") {
-            setShowRetailerForm(true);
-          } else if (user?.role === "farmer") {
-            setLocation(`/product/${notif.productId}`);
-          }
-        }
-      } catch (err) {
-        console.error("Error handling transfer complete notification:", err);
-      }
-      return;
-    }
-
-    // Default handling for other notifications
     if (!firebaseUser) return;
     try {
       await fetch(`/api/notifications/${notif.id}/read`, {
@@ -372,6 +355,7 @@ export function NavigationHeader() {
       // ignore server error for read
     }
 
+    // remove locally and navigate
     removeNotificationLocal(notif.id);
 
     if (notif.productId) {
@@ -386,7 +370,6 @@ export function NavigationHeader() {
   }) => {
     setShowDistributorForm(false);
     setShowRetailerForm(false);
-    setShowTransferOwnershipForm(false);
 
     // choose redirect target: prefer explicit productId from result, otherwise pendingProductIdForRedirect
     const targetProductId = result?.productId ?? pendingProductIdForRedirect;
@@ -398,7 +381,6 @@ export function NavigationHeader() {
     // cleanup
     setPendingProductIdForRedirect(null);
     setCurrentTransferForForm(null);
-    setTransferFormData(null);
   };
 
   const sortedNotifications = [...notifications]; // they're unread only
@@ -481,28 +463,8 @@ export function NavigationHeader() {
                     sortedNotifications.map((notif) => {
                       const isOwnership =
                         notif.type === "ownership_request" ||
-                        notif.type === "ownership_request_accepted" ||
                         notif.requestType === "ownership" ||
                         notif.ownershipRequest === true;
-
-                      // Handle ownership_request_accepted notifications differently
-                      if (notif.type === "ownership_request_accepted") {
-                        return (
-                          <DropdownMenuItem
-                            key={notif.id}
-                            onClick={() => handleNotificationClick(notif)}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <div>
-                              <div className="font-medium">{notif.title}</div>
-                              <div className="text-xs">{notif.message}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {new Date(notif.createdAt).toLocaleString()}
-                              </div>
-                            </div>
-                          </DropdownMenuItem>
-                        );
-                      }
 
                       if (isOwnership) {
                         // Ownership notifications: keep them until Accept/Reject
@@ -703,15 +665,6 @@ export function NavigationHeader() {
             )}
           </div>
         </div>
-      )}
-
-      {/* Transfer Ownership Form */}
-      {showTransferOwnershipForm && (
-        <OwnershipManagementPanel 
-          isOpen={showTransferOwnershipForm}
-          onOpenChange={setShowTransferOwnershipForm}
-          prefillData={transferFormData}
-        />
       )}
     </>
   );
