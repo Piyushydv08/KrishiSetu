@@ -85,7 +85,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background font-sans">
       <Toaster />
       <h1 className="text-4xl font-bold mb-2 text-center text-foreground">
-        🌱 Sign {isSignUp ? "Up" : "In"} for FarmTrace
+        🌱 Sign {isSignUp ? "Up" : "In"} for KrishiSetu
       </h1>
       <p className="mb-6 text-center text-lg text-muted-foreground">
         {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}

@@ -1,6 +1,6 @@
 # Overview
 
-FarmTrace is a blockchain-powered supply chain traceability application that enables farmers, distributors, and consumers to track agricultural products from farm to table. The platform provides product registration, QR code generation, scanning capabilities, and comprehensive supply chain visualization with blockchain verification.
+KrishiSetu is a blockchain-powered supply chain traceability application that enables farmers, distributors, and consumers to track agricultural products from farm to table. The platform provides product registration, QR code generation, scanning capabilities, and comprehensive supply chain visualization with blockchain verification.
 
 The application uses a modern full-stack architecture with React frontend, Express.js backend, PostgreSQL database with Drizzle ORM, and Firebase authentication. It's designed to provide transparency and trust in agricultural supply chains through immutable blockchain records and user-friendly interfaces.
 

@@ -171,7 +171,7 @@ export function QRCodeScanner() {
 
     toast({
       title: "Camera Started",
-      description: "Point your camera at a FarmTrace QR code",
+      description: "Point your camera at a KrishiSetu QR code",
     });
 
     // Cleanup on unmount or stop

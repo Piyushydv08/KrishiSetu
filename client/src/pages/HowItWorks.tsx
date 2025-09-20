@@ -49,11 +49,11 @@ const HowItWorks: React.FC = () => {
 
   return (
     <div className="how-it-works-container">
-      <h1>How FarmTrace Works</h1>
+      <h1>How KrishiSetu Works</h1>
 
       {!selectedRole ? (
         <div className="role-selection">
-          <p>Select your role to see how FarmTrace works for you:</p>
+          <p>Select your role to see how KrishiSetu works for you:</p>
           <div className="role-buttons">
             {roles.map((role) => (
               <button

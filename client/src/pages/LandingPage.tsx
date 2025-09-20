@@ -16,7 +16,7 @@ const LandingPage = () => {
   return (
     <div className="landing-page">
       <nav className="navbar">
-        <div className="logo">FarmTrace</div>
+        <div className="logo">KrishiSetu</div>
         <ul className="nav-links">
           
           <li onClick={() => navigateTo("/HowItWorks")}>How it works</li>

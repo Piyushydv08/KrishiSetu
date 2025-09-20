@@ -130,7 +130,7 @@ export function NavigationHeader() {
       <nav className="bg-card border-b border-border sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-center h-16 items-center">
-            <div className="animate-pulse">FarmTrace...</div>
+            <div className="animate-pulse">KrishiSetu...</div>
           </div>
         </div>
       </nav>
@@ -151,7 +151,7 @@ export function NavigationHeader() {
                   data-testid="logo-home"
                 >
                   <Sprout className="w-6 h-6" />
-                  FarmTrace
+                  KrishiSetu
                 </h1>
               </div>
 
@@ -410,7 +410,7 @@ export function NavigationHeader() {
                   data-testid="logo-home"
                 >
                   <Sprout className="w-6 h-6" />
-                  FarmTrace
+                  KrishiSetu
                 </h1>
               </div>
 

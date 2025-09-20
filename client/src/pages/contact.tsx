@@ -13,7 +13,7 @@ const Contact: React.FC = () => {
         <div className="contact-card">
           <span className="icon">📧</span>
           <h3>Email</h3>
-          <p>support@farmtrace.com</p>
+          <p>support@KrishiSetu.com</p>
         </div>
         <div className="contact-card">
           <span className="icon">📞</span>
@@ -23,7 +23,7 @@ const Contact: React.FC = () => {
         <div className="contact-card">
           <span className="icon">📍</span>
           <h3>Address</h3>
-          <p>123 FarmTrace , Gururgram, India</p>
+          <p>123 KrishiSetu , Gururgram, India</p>
         </div>
       </div>
 

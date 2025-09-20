@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: farmtrace-server
+    name: KrishiSetu-server
     env: node
     plan: free
     buildCommand: |
@@ -36,6 +36,6 @@ services:
         sync: false
 
 databases:
-  - name: farmtrace-mongodb
+  - name: KrishiSetu-mongodb
     plan: free
     ipAllowList: []

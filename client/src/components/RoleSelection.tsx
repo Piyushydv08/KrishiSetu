@@ -119,7 +119,7 @@ export function RoleSelection({
 						<div className="flex items-center justify-center gap-2 mb-3 sm:mb-4">
 							<Sprout className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
 							<h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-								FarmTrace
+								KrishiSetu
 							</h1>
 						</div>
 						<h2 className="text-lg sm:text-xl font-semibold text-foreground mb-2">

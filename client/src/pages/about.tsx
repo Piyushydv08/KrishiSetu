@@ -6,9 +6,9 @@ import "./about.css";
 const About: React.FC = () => {
   return (
     <div className="about-container">
-      <h1 className="fade-in">About FarmTrace</h1>
+      <h1 className="fade-in">About KrishiSetu</h1>
       <p className="fade-in delay-1">
-        FarmTrace is a cutting-edge platform transforming the agricultural supply chain by providing real-time tracking, data-driven insights, and transparent interactions between farmers, retailers, distributors, and consumers.
+        KrishiSetu is a cutting-edge platform transforming the agricultural supply chain by providing real-time tracking, data-driven insights, and transparent interactions between farmers, retailers, distributors, and consumers.
       </p>
 
       <div className="about-sections fade-in delay-2">
@@ -27,7 +27,7 @@ const About: React.FC = () => {
         </section>
 
         <section>
-          <h2>Why FarmTrace?</h2>
+          <h2>Why KrishiSetu?</h2>
           <ul>
             <li><strong>Transparency:</strong> Track every step of produce movement with verified data.</li>
             <li><strong>Data-Driven:</strong> Insights help farmers optimize productivity and minimize losses.</li>
@@ -39,7 +39,7 @@ const About: React.FC = () => {
       </div>
 
       <p className="fade-in delay-3">
-        At FarmTrace, we are passionate about leveraging technology to build a sustainable ecosystem where every stakeholder benefits — from farm to fork.
+        At KrishiSetu, we are passionate about leveraging technology to build a sustainable ecosystem where every stakeholder benefits — from farm to fork.
       </p>
 
       <Link href="/" className="back-link fade-in delay-4">← Back </Link>

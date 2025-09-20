@@ -57,7 +57,7 @@ export function QuickActionsPanel() {
           <div className="mt-4 p-4 bg-muted/30 rounded-lg">
             <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-2">
               <Info className="w-4 h-4" />
-              Scan any FarmTrace QR code to instantly view product journey and verification details
+              Scan any KrishiSetu QR code to instantly view product journey and verification details
             </p>
           </div>
         </CardContent>
