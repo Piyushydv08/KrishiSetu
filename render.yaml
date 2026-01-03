@@ -5,13 +5,9 @@ services:
     plan: free
     buildCommand: |
       npm install
-      cd ../client
-      npm install
-      cd ..
       npm run build
     startCommand: |
-      cd server
-      node dist/index.js
+      NODE_ENV=production node dist/index.js
     envVars:
       - key: NODE_ENV
         value: production
